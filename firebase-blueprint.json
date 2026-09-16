@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with display name and academic settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "semesterConfig": {
+          "type": "object",
+          "properties": {
+            "semesterName": { "type": "string" },
+            "semesterStartDate": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Unified task across Home, Study, Work, and Projects",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string" },
+        "area": { "type": "string", "enum": ["general", "study", "work", "project"] },
+        "priority": { "type": "string", "enum": ["mainQuest", "normal"] },
+        "showOnHome": { "type": "boolean" },
+        "parentType": { "type": "string", "enum": ["assessment", "work", "project"] },
+        "parentId": { "type": "string" },
+        "assignedToUserIds": { "type": "array" }
+      },
+      "required": ["title", "ownerId", "completed", "area", "showOnHome"]
+    },
+    "Assessment": {
+      "title": "Assessment",
+      "description": "Academic test or assignment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "courseCode": { "type": "string" },
+        "type": { "type": "string", "enum": ["test", "assignment"] },
+        "week": { "type": "number" },
+        "date": { "type": "string" },
+        "weight": { "type": "number" },
+        "status": { "type": "string", "enum": ["Upcoming", "In progress", "Completed"] },
+        "pinned": { "type": "boolean" },
+        "collaborationEnabled": { "type": "boolean" },
+        "collaborationCode": { "type": "string" },
+        "memberIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "courseCode", "type", "date", "status"]
+    },
+    "AssessmentNote": {
+      "title": "AssessmentNote",
+      "description": "Dated journal note for an assessment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assessmentId": { "type": "string" },
+        "date": { "type": "string" },
+        "items": { "type": "array" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["assessmentId", "date", "items"]
+    },
+    "AssessmentResource": {
+      "title": "AssessmentResource",
+      "description": "Resource link or document reference for an assessment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assessmentId": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string", "enum": ["link", "document"] },
+        "storagePath": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["assessmentId", "title", "url"]
+    },
+    "WorkItem": {
+      "title": "WorkItem",
+      "description": "Chess lesson class or event schedule definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["class", "event"] },
+        "subject": { "type": "string" },
+        "defaultTime": { "type": "string" },
+        "isRecurring": { "type": "boolean" },
+        "dayOfWeek": { "type": "number" },
+        "recurrenceInterval": { "type": "string", "enum": ["weekly", "none"] },
+        "startDate": { "type": "string" },
+        "defaultNotesProgress": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "title", "type"]
+    },
+    "WorkOccurrence": {
+      "title": "WorkOccurrence",
+      "description": "Individual scheduled session or override with session diary",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "workItemId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled", "rescheduled"] },
+        "whatHappened": { "type": "array" },
+        "nextLessonNotes": { "type": "array" },
+        "notesProgress": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workItemId", "ownerId", "date"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Personal project or idea with tasks and notes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Planning", "On Hold", "Someday", "Completed"] },
+        "section": { "type": "string", "enum": ["active", "someday"] },
+        "icon": { "type": "string" },
+        "overviewNotes": { "type": "string" },
+        "ideas": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "status", "section"]
+    },
+    "CollaborationCode": {
+      "title": "CollaborationCode",
+      "description": "Lookup document to securely resolve a collaboration code to its assessment",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "assessmentId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["code", "assessmentId", "ownerId", "enabled"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserProfile",
+      "description": "User profile records"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Central master tasks with unified home, study, work, and project syncing"
+    },
+    "/assessments/{assessmentId}": {
+      "schema": "Assessment",
+      "description": "Academic tests and assignments"
+    },
+    "/assessmentNotes/{noteId}": {
+      "schema": "AssessmentNote",
+      "description": "Dated notes for assessments"
+    },
+    "/assessmentResources/{resourceId}": {
+      "schema": "AssessmentResource",
+      "description": "Resource links and documents for assessments"
+    },
+    "/workItems/{workItemId}": {
+      "schema": "WorkItem",
+      "description": "Work classes and recurring schedules"
+    },
+    "/workOccurrences/{occurrenceId}": {
+      "schema": "WorkOccurrence",
+      "description": "Individual work occurrences and lesson diary records"
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Projects and ideas"
+    },
+    "/collaborationCodes/{code}": {
+      "schema": "CollaborationCode",
+      "description": "Dedicated lookup documents mapping code to assessmentId"
+    }
+  }
+}

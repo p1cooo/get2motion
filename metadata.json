@@ -1,0 +1,6 @@
+{
+  "name": "Pico's Dashboard",
+  "description": "A cozy, landscape-first personal productivity dashboard for daily planning, university study, chess coaching work, and projects.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

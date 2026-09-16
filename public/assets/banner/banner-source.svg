@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 600" width="1920" height="600">
+  <defs>
+    <!-- Sky Gradients -->
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#b6d5e1" />
+      <stop offset="35%" stop-color="#dce7ed" />
+      <stop offset="65%" stop-color="#f5e1d3" />
+      <stop offset="90%" stop-color="#faeee3" />
+      <stop offset="100%" stop-color="#fdf6ee" />
+    </linearGradient>
+
+    <!-- Sun Glow -->
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff5db" stop-opacity="0.9" />
+      <stop offset="30%" stop-color="#fde4b8" stop-opacity="0.6" />
+      <stop offset="70%" stop-color="#f8d6a8" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#f8d6a8" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Distant Mountains -->
+    <linearGradient id="mountainsFar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c1c9d8" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#dfd7cf" stop-opacity="0.5" />
+    </linearGradient>
+
+    <!-- Mid Mountains -->
+    <linearGradient id="mountainsMid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#9eaec4" />
+      <stop offset="100%" stop-color="#c8c7c7" />
+    </linearGradient>
+
+    <!-- Rolling Hills Far -->
+    <linearGradient id="hillsFar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#b2c9b4" />
+      <stop offset="100%" stop-color="#cfdecb" />
+    </linearGradient>
+
+    <!-- Rolling Hills Mid -->
+    <linearGradient id="hillsMid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#93b996" />
+      <stop offset="100%" stop-color="#bcd4bc" />
+    </linearGradient>
+
+    <!-- Foreground Soft Green Hills -->
+    <linearGradient id="hillsNear" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7ea882" />
+      <stop offset="100%" stop-color="#a4c6a6" />
+    </linearGradient>
+
+    <!-- Warm Golden Light Overlay -->
+    <linearGradient id="goldenHaze" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fce8d5" stop-opacity="0.25" />
+      <stop offset="50%" stop-color="#fef5e7" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#e2eff5" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+
+  <!-- Sky Base -->
+  <rect width="1920" height="600" fill="url(#sky)" />
+
+  <!-- Soft Morning Sun -->
+  <circle cx="960" cy="240" r="280" fill="url(#sunGlow)" />
+  <circle cx="960" cy="240" r="45" fill="#fff9ec" opacity="0.95" />
+
+  <!-- Distant Fluffy Clouds -->
+  <g fill="#ffffff" opacity="0.45">
+    <ellipse cx="280" cy="180" rx="140" ry="32" />
+    <ellipse cx="360" cy="170" rx="90" ry="28" />
+    <ellipse cx="230" cy="190" rx="80" ry="22" />
+
+    <ellipse cx="1520" cy="160" rx="160" ry="34" />
+    <ellipse cx="1620" cy="150" rx="100" ry="30" />
+    <ellipse cx="1440" cy="170" rx="90" ry="24" />
+
+    <ellipse cx="820" cy="130" rx="120" ry="24" />
+    <ellipse cx="900" cy="120" rx="80" ry="20" />
+  </g>
+
+  <!-- Distant Mountains Layer 1 -->
+  <path d="M0 360 Q 240 280 480 320 T 960 290 T 1440 330 T 1920 310 L 1920 600 L 0 600 Z" fill="url(#mountainsFar)" />
+
+  <!-- Mid Mountains Layer 2 -->
+  <path d="M0 390 Q 200 330 420 360 T 880 340 T 1320 370 T 1920 350 L 1920 600 L 0 600 Z" fill="url(#mountainsMid)" opacity="0.85" />
+
+  <!-- Far Rolling Hills -->
+  <path d="M0 420 Q 300 370 650 410 T 1300 390 T 1920 430 L 1920 600 L 0 600 Z" fill="url(#hillsFar)" />
+
+  <!-- Mid Rolling Hills with Little Farm Houses and Trees -->
+  <path d="M0 460 Q 260 410 580 450 T 1220 430 T 1920 470 L 1920 600 L 0 600 Z" fill="url(#hillsMid)" />
+
+  <!-- Clustered Cozy Village & Trees in Distance -->
+  <g fill="#729775" opacity="0.9">
+    <!-- Tree clusters on ridges -->
+    <circle cx="340" cy="425" r="14" />
+    <circle cx="355" cy="422" r="16" />
+    <circle cx="372" cy="426" r="13" />
+
+    <circle cx="780" cy="415" r="15" />
+    <circle cx="798" cy="412" r="18" />
+    <circle cx="818" cy="416" r="14" />
+
+    <circle cx="1410" cy="435" r="15" />
+    <circle cx="1430" cy="430" r="19" />
+    <circle cx="1452" cy="436" r="14" />
+  </g>
+
+  <!-- Foreground Lush Meadow -->
+  <path d="M0 500 Q 350 460 750 490 T 1500 480 T 1920 520 L 1920 600 L 0 600 Z" fill="url(#hillsNear)" />
+
+  <!-- Wildflowers & Gentle Meadow Highlights -->
+  <g fill="#fae1c3" opacity="0.6">
+    <ellipse cx="210" cy="530" rx="4" ry="2" />
+    <ellipse cx="230" cy="535" rx="5" ry="2.5" />
+    <ellipse cx="440" cy="510" rx="4" ry="2" />
+    <ellipse cx="620" cy="540" rx="6" ry="3" />
+    <ellipse cx="980" cy="520" rx="5" ry="2.5" />
+    <ellipse cx="1120" cy="535" rx="4" ry="2" />
+    <ellipse cx="1340" cy="525" rx="6" ry="3" />
+    <ellipse cx="1680" cy="545" rx="5" ry="2.5" />
+  </g>
+
+  <g fill="#ffffff" opacity="0.5">
+    <ellipse cx="310" cy="540" rx="3" ry="2" />
+    <ellipse cx="560" cy="525" rx="4" ry="2" />
+    <ellipse cx="840" cy="535" rx="3" ry="1.5" />
+    <ellipse cx="1220" cy="540" rx="4" ry="2" />
+    <ellipse cx="1520" cy="530" rx="3" ry="2" />
+  </g>
+
+  <!-- Golden Haze Tone Filter -->
+  <rect width="1920" height="600" fill="url(#goldenHaze)" />
+</svg>
