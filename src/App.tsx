@@ -16,10 +16,14 @@ import { AuthModal } from '../components/auth/AuthModal';
 import { seedInitialDemoData } from '../lib/seed';
 import { Sparkles, Database } from 'lucide-react';
 
+function getInitialTab(): ActiveTab {
+  return window.location.pathname.startsWith('/study') ? 'study' : 'home';
+}
+
 function DashboardContent() {
   const { user } = useAuth();
   const { themeConfig } = useTheme();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('home');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
 
   // Sub-view routing
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
@@ -35,6 +39,7 @@ function DashboardContent() {
 
   // Tab switcher with sub-view resets
   const handleTabChange = (tab: ActiveTab) => {
+    window.history.pushState({}, '', tab === 'home' ? '/' : `/${tab}`);
     setActiveTab(tab);
     setSelectedAssessmentId(null);
     setSelectedWorkItemId(null);

@@ -12,20 +12,21 @@ import {
   Plus,
 } from 'lucide-react';
 import { Assessment } from '../../lib/types';
-import { DEMO_ASSESSMENTS } from '../../lib/demo-data';
 
 interface AllAssignmentsViewProps {
   onBack: () => void;
   onSelectAssessment: (assessmentId: string) => void;
   onAddNewAssignment?: () => void;
+  assessments: Assessment[];
 }
 
 export const AllAssignmentsView: React.FC<AllAssignmentsViewProps> = ({
   onBack,
   onSelectAssessment,
   onAddNewAssignment,
+  assessments,
 }) => {
-  const allAssignments = DEMO_ASSESSMENTS.filter((a) => a.type === 'assignment');
+  const allAssignments = assessments.filter((a) => a.type === 'assignment');
 
   // Filter and sort states
   const [searchQuery, setSearchQuery] = useState('');

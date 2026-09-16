@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import {
   GraduationCap,
   Calendar,
@@ -12,6 +13,8 @@ import {
 } from 'lucide-react';
 import { Assessment } from '../../lib/types';
 import { DEMO_ASSESSMENTS } from '../../lib/demo-data';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../lib/auth-context';
 import { AllTestsView } from './AllTestsView';
 import { AllAssignmentsView } from './AllAssignmentsView';
 
@@ -27,25 +30,53 @@ export const StudyView: React.FC<StudyViewProps> = ({
   onOpenJoinCollab,
 }) => {
   const handleOpenJoin = onOpenJoinCollab || onOpenJoinModal || (() => {});
-  const [assessments] = useState<Assessment[]>(DEMO_ASSESSMENTS);
+  const { user } = useAuth();
+  const [assessments, setAssessments] = useState<Assessment[]>(DEMO_ASSESSMENTS);
+
+  useEffect(() => {
+    if (!user) {
+      setAssessments(DEMO_ASSESSMENTS);
+      return;
+    }
+    return onSnapshot(
+      query(collection(db, 'assessments'), where('ownerId', '==', user.uid)),
+      (snapshot) => setAssessments(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Assessment))
+    );
+  }, [user]);
 
   // Subpage routing within Study Hub
-  const [subView, setSubView] = useState<'overview' | 'all-tests' | 'all-assignments'>('overview');
+  const [subView, setSubView] = useState<'overview' | 'all-tests' | 'all-assignments'>(() => {
+    if (window.location.pathname === '/study/tests') return 'all-tests';
+    if (window.location.pathname === '/study/assignments') return 'all-assignments';
+    return 'overview';
+  });
+
+  const openList = (view: 'all-tests' | 'all-assignments') => {
+    window.history.pushState({}, '', view === 'all-tests' ? '/study/tests' : '/study/assignments');
+    setSubView(view);
+  };
+
+  const returnToOverview = () => {
+    window.history.pushState({}, '', '/study');
+    setSubView('overview');
+  };
 
   // Tests & Assignments arrays
   const allTests = assessments.filter((a) => a.type === 'test');
   const allAssignments = assessments.filter((a) => a.type === 'assignment');
 
   // Main page shows ONLY next 3 items per section
-  const visibleTests = allTests.slice(0, 3);
-  const visibleAssignments = allAssignments.slice(0, 3);
+  const byDate = (a: Assessment, b: Assessment) => a.date.localeCompare(b.date);
+  const visibleTests = [...allTests].sort(byDate).slice(0, 3);
+  const visibleAssignments = [...allAssignments].sort(byDate).slice(0, 3);
 
   // Subviews
   if (subView === 'all-tests') {
     return (
       <AllTestsView
-        onBack={() => setSubView('overview')}
+        onBack={returnToOverview}
         onSelectAssessment={onSelectAssessment}
+        assessments={assessments}
         onAddNewTest={() => onSelectAssessment('demo-test-1')}
       />
     );
@@ -54,8 +85,9 @@ export const StudyView: React.FC<StudyViewProps> = ({
   if (subView === 'all-assignments') {
     return (
       <AllAssignmentsView
-        onBack={() => setSubView('overview')}
+        onBack={returnToOverview}
         onSelectAssessment={onSelectAssessment}
+        assessments={assessments}
         onAddNewAssignment={() => onSelectAssessment('demo-assessment-cs-proposal')}
       />
     );
@@ -112,7 +144,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
           </div>
 
           <button
-            onClick={() => setSubView('all-tests')}
+            onClick={() => openList('all-tests')}
             id="view-more-tests-btn"
             className="text-xs font-semibold text-[#966746] hover:text-[#7e5335] px-3 py-1 rounded-full bg-[#fbf7f1] hover:bg-[#f6eee3] border border-[#ede2d2] transition-colors cursor-pointer flex items-center gap-1"
           >
@@ -185,7 +217,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
           </div>
 
           <button
-            onClick={() => setSubView('all-assignments')}
+            onClick={() => openList('all-assignments')}
             id="view-more-assignments-btn"
             className="text-xs font-semibold text-[#966746] hover:text-[#7e5335] px-3 py-1 rounded-full bg-[#fbf7f1] hover:bg-[#f6eee3] border border-[#ede2d2] transition-colors cursor-pointer flex items-center gap-1"
           >

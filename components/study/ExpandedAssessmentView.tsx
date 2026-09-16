@@ -1,6 +1,18 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  runTransaction,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
   ArrowLeft,
   Calendar,
@@ -26,6 +38,9 @@ import {
   DEMO_CS_PROPOSAL_RESOURCES,
   DEMO_TEAM_MEMBERS,
 } from '../../lib/demo-data';
+import { db, getAppStorage } from '../../lib/firebase';
+import { useAuth } from '../../lib/auth-context';
+import { Assessment, AssessmentResource, Task } from '../../lib/types';
 
 interface ExpandedAssessmentViewProps {
   assessmentId: string;
@@ -34,11 +49,8 @@ interface ExpandedAssessmentViewProps {
 
 type AssessmentStatus = 'Upcoming' | 'In Progress' | 'Completed';
 
-interface ResourceItem {
-  id: string;
-  title: string;
-  url: string;
-  type: 'url' | 'file';
+interface ResourceItem extends Omit<AssessmentResource, 'type'> {
+  type: 'url' | 'file' | 'link' | 'document';
   dateAdded?: string;
 }
 
@@ -48,6 +60,7 @@ interface JournalEntry {
   date: string;
   items: string[];
   authorId: string;
+  authorName?: string;
   createdAt: string;
 }
 
@@ -62,6 +75,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   assessmentId,
   onBack,
 }) => {
+  const { user, profile } = useAuth();
+  const initializedCodeFor = useRef<string | null>(null);
   // Find assessment or fallback to CS Project Proposal
   const initialAssessment =
     DEMO_ASSESSMENTS.find((a) => a.id === assessmentId) || DEMO_ASSESSMENTS[6];
@@ -114,12 +129,89 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [newResourceType, setNewResourceType] = useState<'url' | 'file'>('url');
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [editingResourceTitle, setEditingResourceTitle] = useState('');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedResourceFile, setSelectedResourceFile] = useState<File | null>(null);
 
   // Journal Notes
   const [notes, setNotes] = useState<JournalEntry[]>(DEMO_CS_PROPOSAL_NOTES);
   const [blankNoteText, setBlankNoteText] = useState('');
   const [activeAuthorId, setActiveAuthorId] = useState('demo-user-pico');
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+
+  const members = user
+    ? Array.from(new Set([user.uid, ...memberIds])).map((id, index) => {
+        const isCurrentUser = id === user.uid;
+        const name = isCurrentUser
+          ? profile?.displayName || user.displayName || user.email || 'You'
+          : `Member ${id.slice(0, 6)}`;
+        const colors = [
+          { color: '#966746', bg: '#f5ece0' },
+          { color: '#8a4b53', bg: '#faeaec' },
+          { color: '#557859', bg: '#e5efe5' },
+          { color: '#6b578c', bg: '#ede8f5' },
+        ];
+        return { id, name, initial: name.charAt(0).toUpperCase(), ...colors[index % colors.length] };
+      })
+    : COLLAB_MEMBERS;
+
+  const persistNewCode = async (previousCode?: string | null) => {
+    if (!user) return;
+    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const code = Array.from({ length: 5 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
+      try {
+        await runTransaction(db, async (transaction) => {
+          const codeRef = doc(db, 'collaborationCodes', code);
+          if ((await transaction.get(codeRef)).exists()) throw new Error('Code already exists');
+          transaction.set(codeRef, { code, assessmentId, ownerId: user.uid, enabled: true });
+          transaction.update(doc(db, 'assessments', assessmentId), {
+            collaborationCode: code,
+            collaborationEnabled: true,
+          });
+          if (previousCode && previousCode !== code) transaction.delete(doc(db, 'collaborationCodes', previousCode));
+        });
+        setCollabCode(code);
+        return;
+      } catch (error) {
+        if (attempt === 9) console.error('Unable to generate collaboration code', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribers = [
+      onSnapshot(doc(db, 'assessments', assessmentId), (snapshot) => {
+        if (!snapshot.exists()) return;
+        const assessment = snapshot.data() as Assessment;
+        setAssessmentName(assessment.name);
+        setCourseCode(assessment.courseCode);
+        setStatus((assessment.status === 'In progress' ? 'In Progress' : assessment.status) as AssessmentStatus);
+        setDueDate(assessment.date);
+        setWeight(assessment.weight);
+        setWeek(assessment.week);
+        setMemberIds(assessment.memberIds || []);
+        if (assessment.collaborationCode?.match(/^[A-Z]{5}$/)) setCollabCode(assessment.collaborationCode);
+        else if (assessment.ownerId === user.uid && initializedCodeFor.current !== assessmentId) {
+          initializedCodeFor.current = assessmentId;
+          void persistNewCode(assessment.collaborationCode);
+        }
+      }),
+      onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', assessmentId)), (snapshot) => {
+        setTasks(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Task));
+      }),
+      onSnapshot(query(collection(db, 'assessmentResources'), where('assessmentId', '==', assessmentId)), (snapshot) => {
+        setResources(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as ResourceItem));
+      }),
+      onSnapshot(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId)), (snapshot) => {
+        setNotes(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as JournalEntry));
+      }),
+    ];
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [assessmentId, user]);
+
+  const saveAssessment = (changes: Partial<Assessment>) => {
+    if (user) void updateDoc(doc(db, 'assessments', assessmentId), changes);
+  };
 
   // Copy Collaboration Code
   const handleCopyCode = () => {
@@ -130,12 +222,12 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 
   // Regenerate random 5 uppercase letters
   const handleRegenerateCode = () => {
-    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    let code = '';
-    for (let i = 0; i < 5; i++) {
-      code += letters.charAt(Math.floor(Math.random() * letters.length));
+    if (!user) {
+      const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      setCollabCode(Array.from({ length: 5 }, () => letters[Math.floor(Math.random() * letters.length)]).join(''));
+      return;
     }
-    setCollabCode(code);
+    void persistNewCode(collabCode);
   };
 
   // Toggle Task Completion
@@ -143,6 +235,11 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
     );
+    const task = tasks.find((item) => item.id === taskId);
+    if (user && task) void updateDoc(doc(db, 'tasks', taskId), {
+      completed: !task.completed,
+      completedAt: task.completed ? null : new Date().toISOString(),
+    });
   };
 
   // Update Task Assignees
@@ -157,6 +254,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         } else {
           next = [...current, memberId];
         }
+        if (user) void updateDoc(doc(db, 'tasks', taskId), { assignedToUserIds: next });
         return { ...t, assignedToUserIds: next };
       })
     );
@@ -166,16 +264,18 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
-          ? { ...t, assignedToUserIds: COLLAB_MEMBERS.map((m) => m.id) }
+          ? { ...t, assignedToUserIds: members.map((m) => m.id) }
           : t
       )
     );
+    if (user) void updateDoc(doc(db, 'tasks', taskId), { assignedToUserIds: members.map((m) => m.id) });
   };
 
   const handleSetNoneAssignees = (taskId: string) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, assignedToUserIds: [] } : t))
     );
+    if (user) void updateDoc(doc(db, 'tasks', taskId), { assignedToUserIds: [] });
   };
 
   // Blank Row Quick Entry: Tasks
@@ -184,9 +284,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       e.preventDefault();
       if (!blankTaskText.trim()) return;
 
-      const newTask = {
+      const newTask: Task = {
         id: `task-cs-${Date.now()}`,
-        ownerId: 'demo-user-pico',
+        ownerId: user?.uid || 'demo-user-pico',
         title: blankTaskText.trim(),
         completed: false,
         completedAt: null,
@@ -196,11 +296,12 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         priority: 'normal' as const,
         showOnHome: false,
         parentType: 'assessment' as const,
-        parentId: initialAssessment.id,
-        assignedToUserIds: ['demo-user-pico'],
+        parentId: assessmentId,
+        assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      setTasks((prev) => [...prev, newTask]);
+      if (user) void addDoc(collection(db, 'tasks'), newTask);
+      else setTasks((prev) => [...prev, newTask]);
       setBlankTaskText('');
     }
   };
@@ -218,39 +319,57 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 
       const newEntry: JournalEntry = {
         id: `note-${Date.now()}`,
-        assessmentId: initialAssessment.id,
+        assessmentId,
         date: todayStr,
         items: [blankNoteText.trim()],
-        authorId: activeAuthorId,
+        authorId: user?.uid || activeAuthorId,
+        authorName: profile?.displayName || user?.displayName || undefined,
         createdAt: new Date().toISOString(),
       };
 
-      setNotes((prev) => [newEntry, ...prev]);
+      if (user) void addDoc(collection(db, 'assessmentNotes'), newEntry);
+      else setNotes((prev) => [newEntry, ...prev]);
       setBlankNoteText('');
     }
   };
 
   // Resources Management
-  const handleAddResource = (e: React.FormEvent) => {
+  const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newResourceTitle.trim()) return;
 
-    const newRes: ResourceItem = {
-      id: `res-${Date.now()}`,
+    let url = newResourceUrl.trim() || '#';
+    let storagePath: string | undefined;
+    if (user && newResourceType === 'file' && selectedResourceFile) {
+      storagePath = `assessments/${assessmentId}/resources/${Date.now()}-${selectedResourceFile.name}`;
+      const fileRef = ref(getAppStorage(), storagePath);
+      await uploadBytes(fileRef, selectedResourceFile);
+      url = await getDownloadURL(fileRef);
+    }
+    const newRes: Omit<ResourceItem, 'id'> = {
       title: newResourceTitle.trim(),
-      url: newResourceUrl.trim() || '#',
+      url,
       type: newResourceType,
       dateAdded: 'Today',
+      assessmentId,
+      storagePath,
+      createdAt: new Date().toISOString(),
     };
 
-    setResources((prev) => [...prev, newRes]);
+    if (user) await addDoc(collection(db, 'assessmentResources'), newRes);
+    else setResources((prev) => [...prev, { ...newRes, id: `res-${Date.now()}` }]);
     setNewResourceTitle('');
     setNewResourceUrl('');
+    setSelectedResourceFile(null);
     setShowAddResourceModal(false);
   };
 
-  const handleRemoveResource = (id: string) => {
-    setResources((prev) => prev.filter((r) => r.id !== id));
+  const handleRemoveResource = async (id: string) => {
+    const resource = resources.find((item) => item.id === id);
+    if (user) {
+      if (resource?.storagePath) await deleteObject(ref(getAppStorage(), resource.storagePath));
+      await deleteDoc(doc(db, 'assessmentResources', id));
+    } else setResources((prev) => prev.filter((r) => r.id !== id));
   };
 
   const handleSaveResourceTitle = (id: string) => {
@@ -258,6 +377,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       setResources((prev) =>
         prev.map((r) => (r.id === id ? { ...r, title: editingResourceTitle.trim() } : r))
       );
+      if (user) void updateDoc(doc(db, 'assessmentResources', id), { title: editingResourceTitle.trim() });
     }
     setEditingResourceId(null);
   };
@@ -266,7 +386,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     setNewResourceTitle(file.name);
-    setNewResourceUrl(URL.createObjectURL(file));
+    setSelectedResourceFile(file);
+    setNewResourceUrl(user ? '' : URL.createObjectURL(file));
     setNewResourceType('file');
   };
 
@@ -326,6 +447,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                         key={s}
                         onClick={() => {
                           setStatus(s);
+                          saveAssessment({ status: s === 'In Progress' ? 'In progress' : s });
                           setShowStatusDropdown(false);
                         }}
                         className={`px-3 py-1.5 rounded-xl text-left font-semibold cursor-pointer transition-colors ${
@@ -347,9 +469,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   type="text"
                   value={assessmentName}
                   onChange={(e) => setAssessmentName(e.target.value)}
-                  onBlur={() => setIsEditingName(false)}
+                  onBlur={() => { setIsEditingName(false); saveAssessment({ name: assessmentName.trim() || initialAssessment.name }); }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingName(false);
+                    if (e.key === 'Enter') { setIsEditingName(false); saveAssessment({ name: assessmentName.trim() || initialAssessment.name }); }
                     if (e.key === 'Escape') setIsEditingName(false);
                   }}
                   autoFocus
@@ -371,9 +493,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   type="text"
                   value={courseCode}
                   onChange={(e) => setCourseCode(e.target.value)}
-                  onBlur={() => setIsEditingCourse(false)}
+                  onBlur={() => { setIsEditingCourse(false); saveAssessment({ courseCode: courseCode.trim() || initialAssessment.courseCode }); }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingCourse(false);
+                    if (e.key === 'Enter') { setIsEditingCourse(false); saveAssessment({ courseCode: courseCode.trim() || initialAssessment.courseCode }); }
                     if (e.key === 'Escape') setIsEditingCourse(false);
                   }}
                   autoFocus
@@ -438,6 +560,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   value={dueDate}
                   onChange={(e) => {
                     setDueDate(e.target.value);
+                    saveAssessment({ date: e.target.value });
                     setIsEditingDueDate(false);
                   }}
                   onBlur={() => setIsEditingDueDate(false)}
@@ -465,9 +588,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   max="100"
                   value={weight}
                   onChange={(e) => setWeight(parseInt(e.target.value, 10) || 0)}
-                  onBlur={() => setIsEditingWeight(false)}
+                  onBlur={() => { setIsEditingWeight(false); saveAssessment({ weight }); }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingWeight(false);
+                    if (e.key === 'Enter') { setIsEditingWeight(false); saveAssessment({ weight }); }
                   }}
                   autoFocus
                   className="w-14 bg-white border border-[#966746] rounded px-1.5 py-0.5 text-xs text-[#43342a]"
@@ -493,9 +616,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   max="20"
                   value={week}
                   onChange={(e) => setWeek(parseInt(e.target.value, 10) || 1)}
-                  onBlur={() => setIsEditingWeek(false)}
+                  onBlur={() => { setIsEditingWeek(false); saveAssessment({ week }); }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingWeek(false);
+                    if (e.key === 'Enter') { setIsEditingWeek(false); saveAssessment({ week }); }
                   }}
                   autoFocus
                   className="w-14 bg-white border border-[#966746] rounded px-1.5 py-0.5 text-xs text-[#43342a]"
@@ -515,7 +638,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
           <div className="flex items-center gap-2 text-[11px] text-[#9d8a7c]">
             <span>Active Team:</span>
             <div className="flex items-center -space-x-1.5">
-              {COLLAB_MEMBERS.map((m) => (
+              {members.map((m) => (
                 <span
                   key={m.id}
                   style={{ backgroundColor: m.bg, color: m.color }}
@@ -557,7 +680,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
             <div className="flex flex-col divide-y divide-[#f7f0e6]">
               {tasks.map((task) => {
                 const assignedIds = task.assignedToUserIds || [];
-                const isAll = assignedIds.length === COLLAB_MEMBERS.length;
+                const isAll = assignedIds.length === members.length;
 
                 return (
                   <div
@@ -603,7 +726,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                         ) : (
                           <div className="flex items-center -space-x-1">
                             {assignedIds.map((id) => {
-                              const member = COLLAB_MEMBERS.find((m) => m.id === id);
+                              const member = members.find((m) => m.id === id);
                               if (!member) return null;
                               return (
                                 <span
@@ -627,7 +750,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                           <div className="px-2 py-1 font-bold text-[#8c7a6e] text-[10px] uppercase tracking-wider border-b border-[#f2e7d7]">
                             Assign to
                           </div>
-                          {COLLAB_MEMBERS.map((m) => {
+                          {members.map((m) => {
                             const isAssigned = assignedIds.includes(m.id);
                             return (
                               <button
@@ -906,7 +1029,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   onChange={(e) => setActiveAuthorId(e.target.value)}
                   className="text-xs bg-[#fbf7f1] border border-[#ded2c0] rounded-lg px-2 py-0.5 text-[#43342a] font-semibold cursor-pointer"
                 >
-                  {COLLAB_MEMBERS.map((m) => (
+                  {(user ? members.filter((m) => m.id === user.uid) : members).map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
                     </option>
@@ -918,8 +1041,13 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
             {/* Fixed/Max-Height Scroll Container */}
             <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
               {notes.map((entry) => {
-                const author =
-                  COLLAB_MEMBERS.find((m) => m.id === entry.authorId) || COLLAB_MEMBERS[0];
+                const author = members.find((m) => m.id === entry.authorId) || {
+                  id: entry.authorId,
+                  name: entry.authorName || 'Collaborator',
+                  initial: (entry.authorName || 'C').charAt(0).toUpperCase(),
+                  color: '#786659',
+                  bg: '#f5ece0',
+                };
 
                 return (
                   <div

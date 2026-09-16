@@ -9,7 +9,6 @@ import {
   Sparkles,
   Clock,
   GripVertical,
-  Trash2,
   Crown,
   Edit2,
   ArrowDown,
@@ -28,11 +27,23 @@ interface HomeViewProps {
   onNavigateToProjects?: () => void;
 }
 
+const isToday = (value: string) => new Date(value).toDateString() === new Date().toDateString();
+
+const createHomeDemoTasks = () => {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return DEMO_HOME_TASKS.map((task) =>
+    task.completed && task.completedAt
+      ? { ...task, completedAt: `${today}T${task.completedAt.slice(11, 23)}` }
+      : task
+  );
+};
+
 export const HomeView: React.FC<HomeViewProps> = () => {
   const { user } = useAuth();
 
   // Local state seeded with demo data
-  const [tasks, setTasks] = useState<Task[]>(DEMO_HOME_TASKS);
+  const [tasks, setTasks] = useState<Task[]>(createHomeDemoTasks);
 
   // Blank row quick-entry input states
   const [blankThingsToDoText, setBlankThingsToDoText] = useState('');
@@ -59,7 +70,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   );
 
   // Completed "Done Today" tasks
-  const doneToday = tasks.filter((t) => t.completed);
+  const doneToday = tasks.filter((t) => t.completed && t.completedAt && isToday(t.completedAt));
 
   // Checkbox toggle handler (Only checkbox toggles completion!)
   const handleToggleTask = (taskId: string, e?: React.MouseEvent) => {
@@ -182,11 +193,6 @@ export const HomeView: React.FC<HomeViewProps> = () => {
       setBlankMainQuestText('');
       mainQuestInputRef.current?.blur();
     }
-  };
-
-  // Clear all done tasks
-  const handleClearDone = () => {
-    setTasks((prev) => prev.filter((t) => !t.completed));
   };
 
   // Drag & drop handlers
@@ -544,15 +550,6 @@ export const HomeView: React.FC<HomeViewProps> = () => {
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#edf4ee] text-[#557859]">
                   {doneToday.length}
                 </span>
-                {doneToday.length > 0 && (
-                  <button
-                    onClick={handleClearDone}
-                    title="Clear completed tasks"
-                    className="p-1 rounded-md text-[#a9998d] hover:text-[#966746] hover:bg-[#f6eee3] transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
             </div>
 

@@ -16,12 +16,15 @@ export const FoxMascot: React.FC<FoxMascotProps> = ({
   className = '',
 }) => {
   const [imgFailed, setImgFailed] = React.useState(false);
+  const imagePath = state === 'sleeping' ? '/assets/fox/cozy_fox.png' : '/assets/fox/home_fox.png';
 
-  // If user provided webp assets in /assets/fox/
+  React.useEffect(() => setImgFailed(false), [state]);
+
+  // Use the supplied local PNG artwork; the SVG below remains the graceful fallback.
   if (!imgFailed) {
     return (
       <img
-        src={`/assets/fox/fox-${state}.webp`}
+        src={imagePath}
         alt={`Pico the Fox (${state})`}
         width={size}
         height={state === 'sleeping' ? size * 0.72 : size}

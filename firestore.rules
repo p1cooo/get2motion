@@ -19,6 +19,14 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function canAccessAssessment(assessmentId) {
+      let assessment = get(/databases/$(database)/documents/assessments/$(assessmentId));
+      return isSignedIn() && (
+        assessment.data.ownerId == request.auth.uid ||
+        request.auth.uid in assessment.data.memberIds
+      );
+    }
+
     // 1. Users Collection
     match /users/{uid} {
       allow get: if isSignedIn();
@@ -82,22 +90,23 @@ service cloud.firestore {
 
     // 4. Assessment Notes Collection
     match /assessmentNotes/{noteId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() &&
+      allow get, list: if canAccessAssessment(resource.data.assessmentId);
+      allow create: if canAccessAssessment(request.resource.data.assessmentId) &&
         request.resource.data.assessmentId is string &&
-        request.resource.data.items is list;
-      allow update, delete: if isSignedIn() &&
+        request.resource.data.items is list &&
+        request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if canAccessAssessment(resource.data.assessmentId) &&
         (resource.data.authorId == request.auth.uid);
     }
 
     // 5. Assessment Resources Collection
     match /assessmentResources/{resourceId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() &&
+      allow get, list: if canAccessAssessment(resource.data.assessmentId);
+      allow create: if canAccessAssessment(request.resource.data.assessmentId) &&
         request.resource.data.assessmentId is string &&
         request.resource.data.title is string &&
         request.resource.data.url is string;
-      allow update, delete: if isSignedIn();
+      allow update, delete: if canAccessAssessment(resource.data.assessmentId);
     }
 
     // 6. Work Items Collection (Classes and Events)
@@ -133,7 +142,7 @@ service cloud.firestore {
     // 9. Dedicated Collaboration Codes Lookup Collection
     match /collaborationCodes/{code} {
       // Direct get by exact code is allowed if code is enabled
-      allow get: if isSignedIn() && resource.data.enabled == true;
+      allow get: if isSignedIn() && (resource == null || resource.data.enabled == true);
       // Listing or querying all codes is strictly forbidden
       allow list: if false;
       allow create, update, delete: if isSignedIn() && (

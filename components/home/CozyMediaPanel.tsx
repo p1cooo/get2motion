@@ -24,8 +24,8 @@ interface CozyMediaSettings {
 }
 
 const DEFAULT_SETTINGS: CozyMediaSettings = {
-  mode: 'youtube',
-  youtubeUrl: 'https://www.youtube.com/watch?v=jfKfPfyJRdk', // Popular cozy lo-fi girl stream
+  mode: 'image',
+  youtubeUrl: '',
   imageUrl: '/assets/art/cozy-art.webp',
 };
 
