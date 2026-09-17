@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   Flag,
   Plus,
@@ -16,9 +17,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 import { Task } from '../../lib/types';
-import { FoxMascot } from '../FoxMascot';
 import { DEMO_HOME_TASKS } from '../../lib/demo-data';
 import { CozyMediaPanel } from './CozyMediaPanel';
+import { db } from '../../lib/firebase';
 import confetti from 'canvas-confetti';
 
 interface HomeViewProps {
@@ -45,6 +46,17 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   // Local state seeded with demo data
   const [tasks, setTasks] = useState<Task[]>(createHomeDemoTasks);
 
+  useEffect(() => {
+    if (!user) {
+      setTasks(createHomeDemoTasks());
+      return;
+    }
+    return onSnapshot(
+      query(collection(db, 'tasks'), where('ownerId', '==', user.uid)),
+      (snapshot) => setTasks(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Task))
+    );
+  }, [user]);
+
   // Blank row quick-entry input states
   const [blankThingsToDoText, setBlankThingsToDoText] = useState('');
   const [blankMainQuestText, setBlankMainQuestText] = useState('');
@@ -62,15 +74,15 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // MULTIPLE Main Quest tasks (active, priority === 'mainQuest')
-  const mainQuests = tasks.filter((t) => !t.completed && t.priority === 'mainQuest');
+  const homeTasks = tasks.filter((task) => task.showOnHome || task.parentType === null);
+  const mainQuests = homeTasks.filter((t) => !t.completed && t.priority === 'mainQuest');
 
   // Open "Things To Do" tasks (excluding completed and main quest)
-  const thingsToDo = tasks.filter(
-    (t) => !t.completed && t.priority !== 'mainQuest'
-  );
+  const thingsToDo = homeTasks.filter((t) => !t.completed && t.priority !== 'mainQuest')
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   // Completed "Done Today" tasks
-  const doneToday = tasks.filter((t) => t.completed && t.completedAt && isToday(t.completedAt));
+  const doneToday = homeTasks.filter((t) => t.completed && t.completedAt && isToday(t.completedAt));
 
   // Checkbox toggle handler (Only checkbox toggles completion!)
   const handleToggleTask = (taskId: string, e?: React.MouseEvent) => {
@@ -100,20 +112,27 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         return task;
       })
     );
+    const task = tasks.find((item) => item.id === taskId);
+    if (user && task) void updateDoc(doc(db, 'tasks', taskId), {
+      completed: !task.completed,
+      completedAt: task.completed ? null : new Date().toISOString(),
+    });
   };
 
   // Move task to Main Quest (multi-quest supported)
   const handleMoveToMainQuest = (taskId: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, priority: 'mainQuest' } : t))
+      prev.map((t) => (t.id === taskId ? { ...t, priority: 'mainQuest', showOnHome: true } : t))
     );
+    if (user) void updateDoc(doc(db, 'tasks', taskId), { priority: 'mainQuest', showOnHome: true });
   };
 
   // Move task to Things To Do
   const handleMoveToThingsToDo = (taskId: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, priority: 'normal' } : t))
+      prev.map((t) => (t.id === taskId ? { ...t, priority: 'normal', showOnHome: true } : t))
     );
+    if (user) void updateDoc(doc(db, 'tasks', taskId), { priority: 'normal', showOnHome: true });
   };
 
   // Start inline editing
@@ -131,6 +150,9 @@ export const HomeView: React.FC<HomeViewProps> = () => {
           t.id === editingTaskId ? { ...t, title: editingTaskTitle.trim() } : t
         )
       );
+    }
+    if (user && editingTaskId && editingTaskTitle.trim()) {
+      void updateDoc(doc(db, 'tasks', editingTaskId), { title: editingTaskTitle.trim() });
     }
     setEditingTaskId(null);
   };
@@ -157,7 +179,8 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      setTasks((prev) => [newTask, ...prev]);
+      if (user) void addDoc(collection(db, 'tasks'), newTask);
+      else setTasks((prev) => [...prev, newTask]);
       setBlankThingsToDoText('');
     } else if (e.key === 'Escape') {
       setBlankThingsToDoText('');
@@ -187,7 +210,8 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      setTasks((prev) => [newTask, ...prev]);
+      if (user) void addDoc(collection(db, 'tasks'), newTask);
+      else setTasks((prev) => [newTask, ...prev]);
       setBlankMainQuestText('');
     } else if (e.key === 'Escape') {
       setBlankMainQuestText('');
@@ -245,15 +269,12 @@ export const HomeView: React.FC<HomeViewProps> = () => {
             LEFT COLUMN (lg:col-span-4): Fox Mascot Card + Multiple Main Quests
         ========================================================================= */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* 1. Cozy Resting Fox Visual Card */}
-          <div className="bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-6 shadow-xs flex flex-col items-center justify-center text-center relative overflow-hidden group hover:border-[#dfd0be] transition-colors">
+          {/* 1. Calm Home encouragement card */}
+          <div className="bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-6 shadow-xs flex flex-col items-center justify-center text-center relative overflow-hidden group hover:border-[#dfd0be] transition-colors min-h-[150px]">
             <div className="absolute w-36 h-36 rounded-full bg-[#faefe0] -top-6 -right-6 pointer-events-none opacity-50" />
-            <div className="w-full flex justify-center py-2">
-              <FoxMascot state="sleeping" size={135} />
-            </div>
-            <div className="mt-2 text-xs text-[#9d8a7c] font-medium tracking-wide">
-              Pico is quietly dozing by the warm window
-            </div>
+            <Sparkles className="relative w-7 h-7 text-[#cfa361] mb-2" />
+            <div className="relative text-sm font-serif italic text-[#4a3b31]">One gentle step is enough for today.</div>
+            <div className="relative mt-1 text-[11px] text-[#9d8a7c] font-medium tracking-wide">Keep your pace, Pico.</div>
           </div>
 
           {/* 2. Main Quest Focus Card (Supports MULTIPLE Main Quest tasks with fixed/max-height scrolling) */}

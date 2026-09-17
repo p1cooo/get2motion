@@ -160,7 +160,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
       <div
         className={`relative w-full h-[195px] sm:h-[225px] rounded-3xl ${
           isDraggingOver ? 'border-[#966746] border-dashed ring-4 ring-[#966746]/20' : themeConfig.borderColor
-        } border-[3px] shadow-sm overflow-hidden flex flex-col justify-between p-4 sm:p-6 select-none transition-all duration-200`}
+        } border-[3px] shadow-sm overflow-hidden flex flex-col justify-between p-4 sm:p-6 select-none transition-all duration-200 group`}
       >
         {/* Real Banner Image Asset (Default: /assets/banner/default-banner.webp or user uploaded) */}
         {!imgFailed ? (
@@ -229,6 +229,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
               </span>
             </button>
 
+            <div className="flex items-center gap-2 opacity-0 pointer-events-none translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0">
             {/* Banner Theme Atmosphere Selector */}
             <div className="relative">
               <button
@@ -432,6 +433,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
                 </div>
               )}
             </div>
+            </div>
           </div>
 
           {/* Daily Affirmation Pill */}
@@ -441,21 +443,6 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
           </div>
         </div>
 
-        {/* Window Sill Foreground: Mascot Area */}
-        <div className="relative z-10 flex items-end justify-between mt-auto pt-2 border-b-[3px] border-[#e2d4c0]/40 pb-0.5">
-          <div className="text-[11px] font-medium text-[#8c7a6e]/80 italic pl-1 hidden sm:block">
-            Pico&apos;s Sanctuary
-          </div>
-
-          {/* Right: Sleeping Fox curled comfortably on the sill */}
-          <div
-            onClick={onFoxClick}
-            className="cursor-pointer group flex flex-col items-center transition-transform hover:-translate-y-0.5"
-            title="Pico the Fox is resting peacefully"
-          >
-            <FoxMascot state={foxState} size={115} />
-          </div>
-        </div>
       </div>
     </header>
   );

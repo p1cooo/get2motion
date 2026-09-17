@@ -50,6 +50,10 @@ Codex should update this file as work progresses. Do not mark complete until imp
 - [x] Implement Cozy Media image/GIF
 - [ ] Implement Cozy Media YouTube (support exists; needs a browser regression test with a known live URL)
 - [x] Verify banner replace/reset (browser-verified with a local preset and reset to the default asset)
+- [x] Keep the top banner as the only banner image; restore the left Home card to a non-banner card
+- [x] Make banner customization controls hover/focus-revealed while Semester/Week remain visible
+- [x] Default Things To Do to creation order and append new guest tasks
+- [x] Keep YouTube media mounted at app level with a small persistent mini-player (browser regression pending)
 
 Lint, typecheck, and production build pass after this stage. Continue with remaining Home interaction regression before Stage 3.
 
@@ -90,8 +94,16 @@ Run typecheck/build before moving on.
 - [ ] Move Work calendar/detail state from demo-only memory to Firestore
 - [ ] Move Projects/detail state from demo-only memory to Firestore
 
+### Shared tasks (17 Sep 2026)
+- [x] Connect signed-in Home to canonical Firestore tasks
+- [x] Render `showOnHome` project/assessment tasks on Home without duplicating records
+- [x] Persist Home completion, title edits, quick entry, and Main Quest moves to canonical tasks
+- [x] Add Assessment Detail task inline editing
+
 ## Stage 4 — Work calendar
 ### Month View
+- [x] Connect signed-in calendar create/move state to existing Firestore `workItems` / `workOccurrences` records (implementation complete; authenticated browser regression pending)
+- [x] Connect signed-in Work Detail schedule and journal writes to Firestore (implementation complete; authenticated browser regression pending)
 - [ ] Preserve fixed equal cells
 - [ ] Max 3 visible entries
 - [ ] `+X more`
@@ -123,47 +135,45 @@ Run typecheck/build before moving on.
 - [ ] Next Lesson Notes quick-entry
 - [ ] Prep/To-do quick-entry
 - [ ] Consistent back nav
+- [ ] Move Work prep checklist to canonical `tasks` records (it currently persists within the work occurrence)
 
 Run typecheck/build before moving on.
 
 ## Stage 5 — Projects
 ### Main
-- [ ] 3 most recent Active + total count
-- [ ] 3 most recent On Hold/Someday + total count
-- [ ] View More
-- [ ] Seed 8+ active/planning and 6+ on hold/someday
+- [x] Sort to 3 most recent Active/Planning + total count
+- [x] Sort to 3 most recent On Hold/Someday + total count
+- [x] View More expands each full list
+- [x] Seed 8 Active/Planning and 6 On Hold/Someday for new signed-in demo data; guest has the same reference counts
 
 ### Drag/status
-- [ ] Active/Planning → On Hold persists `On Hold`
-- [ ] On Hold/Someday → Active persists `Active`
+- [x] Active/Planning → On Hold persists `On Hold`
+- [x] On Hold/Someday → Active persists `Active`
 
 ### Detail
-- [ ] Editable name/status/description/target date
-- [ ] Next Actions quick-entry
-- [ ] Ideas & Improvements quick-entry
-- [ ] Notes & Progress quick-entry
-- [ ] Task checkbox/inline edit
-- [ ] Delete/Due Date/Show on Home actions
-- [ ] Author/timestamp notes
-- [ ] Notes scroll
-- [ ] Consistent back nav
+- [x] Persist editable name/status/description/optional target date
+- [x] Persist Next Actions, Ideas & Improvements, and Notes & Progress quick entry
+- [x] Persist task checkbox/inline edit/delete/due date/Show on Home actions (Home rendering awaits shared-task migration)
+- [x] Store note author and timestamp; long columns retain internal scrolling
+- [x] Preserve ← Back to Projects & Ideas
+- [ ] Browser regression for Projects main/detail and signed-in refresh/navigation
 
 Run typecheck/build before moving on.
 
 ## Stage 6 — Firebase and authentication
 Only after core UI/logic is stable.
 
-- [ ] Inspect Firebase environment usage
+- [x] Inspect Firebase environment usage; Vite `VITE_FIREBASE_*` overrides documented with public-config fallback
 - [ ] Keep `.env.local` outside Git
 - [ ] Email/password signup/login
 - [ ] Display Name
 - [ ] Google sign-in
-- [ ] Forgot password
+- [x] Forgot password UI wired to the existing Auth context (browser verification pending)
 - [ ] Logout
 - [ ] Friendly error mapping
 - [ ] Firestore owner isolation
 - [ ] Collaboration security
-- [ ] Firebase Storage where needed
+- [x] Firebase Storage used by signed-in Assessment resource uploads; deployment rules still require project-specific validation
 - [ ] Demo Mode still works
 
 ## Stage 7 — Regression / production readiness

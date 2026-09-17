@@ -30,6 +30,9 @@ Check items only after implementation and verification.
 - [x] Theme does not automatically replace banner
 
 ## Home
+- [ ] Left Home card is non-banner; banner controls hover-reveal; persistent mini-player navigation behavior (implemented; awaiting browser verification)
+- [x] Signed-in Home uses canonical Firestore task records
+- [x] Project tasks marked Show on Home render from their canonical record
 - [x] Default banner renders
 - [x] Upload/replace banner works (preset replacement browser-verified; file upload remains covered by the same processor)
 - [x] Reset banner works
@@ -107,6 +110,7 @@ Check items only after implementation and verification.
 - [ ] Collaboration access is assessment-scoped
 
 ## Work Month View
+- [ ] Signed-in Work create, reschedule, and refresh persistence (implemented; awaiting authenticated user verification)
 - [ ] Equal fixed day cells
 - [ ] Cells do not expand with event count
 - [ ] Max 3 visible items/day
@@ -147,6 +151,7 @@ Check items only after implementation and verification.
 - [ ] Past occurrences remain unchanged
 
 ## Work detail
+- [ ] Signed-in Work detail field/journal persistence (implemented; awaiting authenticated user verification)
 - [ ] Date editable
 - [ ] Start time editable
 - [ ] End time editable
@@ -157,6 +162,7 @@ Check items only after implementation and verification.
 - [ ] Back to Work Calendar consistent
 
 ## Projects main/detail
+- [x] Signed-in Projects main/detail is Firestore-backed without visual-only drag movement
 - [ ] Active shows 3 most recent
 - [ ] Active badge shows total
 - [ ] On Hold/Someday shows 3 most recent
@@ -183,6 +189,7 @@ Check items only after implementation and verification.
 - [ ] Back to Projects & Ideas consistent
 
 ## Authentication / Firebase
+- [ ] Vite Firebase environment overrides work in deployed environment (implemented; awaiting deployment verification)
 - [ ] Email/password signup works
 - [ ] Display Name stored/displayed
 - [ ] Email/password login works

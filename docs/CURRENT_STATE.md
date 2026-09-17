@@ -110,6 +110,27 @@ Visual styling in the lower portions of several pages is already close to the de
 3. **Remaining data loss:** Work calendar/detail and Projects/detail still use component-local demo state. They are the next persistence candidates after the authenticated Assessment Detail regression and secure collaboration redemption.
 4. **Assessment UI gap:** task titles are displayed but not yet inline-editable, so the requested task inline-edit acceptance item remains open.
 
+### Shared task model update (17 Sep 2026)
+
+- Signed-in Home now subscribes to the canonical Firestore `tasks` collection by owner UID. Project and Assessment Detail already write to that collection, so a project or assessment task marked `showOnHome` is rendered from the same record on Home.
+- Completion, title edits, priority moves, due dates, deletion, parent links, owner ID, assignee IDs, and `completedAt` stay on the canonical task record. Guests retain the existing local demo task data.
+- Work calendar and work detail remain the largest demo-only/persistence gap. Their full recurrence/occurrence model needs implementation before production deployment.
+
+### Production persistence update (17 Sep 2026)
+
+- Signed-in Work Calendar now reads the existing `workItems` and `workOccurrences` collections rather than keeping calendar changes only in component state. New items, one-off moves, recurring occurrence exceptions, and future-series splits write to Firestore; guests still receive the reference calendar.
+- Signed-in Work Detail persists edited schedule fields and journal entries to the relevant work documents. It keeps the existing visual diary. Work prep entries are persisted with the session record; migrating those to canonical `tasks` is still pending.
+- Firebase client configuration can now be supplied as Vite `VITE_FIREBASE_*` variables, with the existing public Firebase app configuration as a backwards-compatible fallback. `vercel.json` supplies the SPA rewrite.
+- Firebase Storage deployment rules are not checked in because the current assessment-resource path lacks an owner UID and the configured Firestore database is not the Storage Rules default-database integration target. Do not enable production uploads until rules have been verified against the configured Firebase project.
+- Collaboration code redemption remains intentionally called out as a production security blocker. It needs a trusted server-side endpoint with Admin credentials; that credential must not be placed in this Vite client or committed.
+
+### Home/media refinement (17 Sep 2026)
+
+- The left Home card no longer reuses a banner/asset image. It is again a compact non-banner encouragement card.
+- The top banner no longer has its bottom-right image element. Semester and week remain visible; theme and banner controls now fade in only while the banner is hovered or keyboard-focused.
+- Things To Do defaults to ascending `createdAt` order, and guest quick entry appends new tasks instead of prepending them. There is no separate persisted manual-sort field in the current task model.
+- Cozy Media settings and the YouTube iframe now live in an app-level context. The persistent floating mini-player stays mounted during SPA navigation and provides play, pause, and playlist-only previous/next commands. Browser verification is awaiting an available browser surface.
+
 ### Work
 
 The month calendar visual design was close to the desired layout and should be preserved.
@@ -130,16 +151,10 @@ The month calendar visual design was close to the desired layout and should be p
 
 ### Projects
 
-- only 3 most recent cards per section on main page
-- count badges should show totals
-- View More full list page
-- drag between sections must update underlying status
-- project name/status/description/target date inline editing
-- project task quick-entry
-- project task inline edit
-- task context actions: Delete, Due Date, Show on Home
-- notes should include author/timestamp
-- long notes should scroll internally
+- Signed-in Projects & Ideas now reads owner project records from Firestore; guests retain the 8 Active/Planning and 6 On Hold/Someday demo records.
+- The main view sorts by `updatedAt` before showing three cards per section, uses total-count badges, and persists drag status/section updates rather than moving cards visually only.
+- Project Detail now persists direct edits, canonical project tasks (including completion, title, delete, due date, and Show on Home), ideas, and author/timestamped notes. Browser regression remains pending because no browser surface was available in this session.
+- The Show on Home action persists the canonical task flag, but Home still renders its separate local task list; displaying those saved project tasks on Home remains part of the shared-task migration.
 
 ### Authentication
 

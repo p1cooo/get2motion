@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Music,
   Image as ImageIcon,
@@ -16,21 +16,10 @@ import {
   Loader2,
 } from 'lucide-react';
 import { optimizeImageFile, isValidImageFile } from '../../lib/image-utils';
-
-interface CozyMediaSettings {
-  mode: 'youtube' | 'image' | 'none';
-  youtubeUrl: string;
-  imageUrl: string;
-}
-
-const DEFAULT_SETTINGS: CozyMediaSettings = {
-  mode: 'image',
-  youtubeUrl: '',
-  imageUrl: '/assets/art/cozy-art.webp',
-};
+import { parseYouTubeUrl, useCozyMedia, type CozyMediaSettings } from './cozy-media-context';
 
 export const CozyMediaPanel: React.FC = () => {
-  const [settings, setSettings] = useState<CozyMediaSettings>(DEFAULT_SETTINGS);
+  const { settings, saveSettings, play } = useCozyMedia();
   const [isEditing, setIsEditing] = useState(false);
   const [inputUrl, setInputUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'youtube' | 'image'>('youtube');
@@ -38,99 +27,12 @@ export const CozyMediaPanel: React.FC = () => {
   const [imgErrorStep, setImgErrorStep] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Reset imgErrorStep whenever imageUrl changes so fresh uploads/presets always render
   useEffect(() => {
     setImgErrorStep(0);
   }, [settings.imageUrl]);
 
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('pico_cozy_media');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Ensure imageUrl has a valid fallback if empty or broken
-        if (!parsed.imageUrl) {
-          parsed.imageUrl = '/assets/art/cozy-art.webp';
-        }
-        setSettings(parsed);
-      }
-    } catch {
-      // Ignore
-    }
-  }, []);
-
-  const saveSettings = (newSettings: CozyMediaSettings) => {
-    setSettings(newSettings);
-    setImgErrorStep(0);
-    try {
-      localStorage.setItem('pico_cozy_media', JSON.stringify(newSettings));
-    } catch {
-      // Ignore
-    }
-  };
-
-  // Safe YouTube parser
-  const parseYouTubeUrl = (url: string): { type: 'video' | 'playlist'; embedUrl: string } | null => {
-    try {
-      const trimmed = url.trim();
-      if (!trimmed) return null;
-
-      // Handle playlist URL
-      if (trimmed.includes('list=')) {
-        const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
-        const listId = urlObj.searchParams.get('list');
-        if (listId && /^[a-zA-Z0-9_-]+$/.test(listId)) {
-          return {
-            type: 'playlist',
-            embedUrl: `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(listId)}`,
-          };
-        }
-      }
-
-      // Handle standard watch URL
-      if (trimmed.includes('watch?v=')) {
-        const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
-        const videoId = urlObj.searchParams.get('v');
-        if (videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-          return {
-            type: 'video',
-            embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`,
-          };
-        }
-      }
-
-      // Handle youtu.be short URL
-      if (trimmed.includes('youtu.be/')) {
-        const parts = trimmed.split('youtu.be/');
-        const candidate = parts[1]?.split('?')[0]?.split('&')[0];
-        if (candidate && /^[a-zA-Z0-9_-]{11}$/.test(candidate)) {
-          return {
-            type: 'video',
-            embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(candidate)}`,
-          };
-        }
-      }
-
-      // Handle embed format
-      if (trimmed.includes('/embed/')) {
-        const parts = trimmed.split('/embed/');
-        const candidate = parts[1]?.split('?')[0]?.split('&')[0];
-        if (candidate && /^[a-zA-Z0-9_-]{11}$/.test(candidate)) {
-          return {
-            type: 'video',
-            embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(candidate)}`,
-          };
-        }
-      }
-
-      return null;
-    } catch {
-      return null;
-    }
-  };
 
   const handleSaveYouTube = (e: React.FormEvent) => {
     e.preventDefault();
@@ -506,16 +408,13 @@ export const CozyMediaPanel: React.FC = () => {
           )}
         </div>
       ) : settings.mode === 'youtube' && parsedEmbed ? (
-        /* YouTube Embed Display (No forced autoplay, privacy-enhanced youtube-nocookie) */
+        /* The persistent iframe lives at app level so navigation does not stop playback. */
         <div className="flex flex-col gap-2">
-          <div className="w-full aspect-video rounded-xl overflow-hidden border border-[#ede2d2] bg-black/5 shadow-2xs">
-            <iframe
-              src={parsedEmbed.embedUrl}
-              title="Cozy Media Stream"
-              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full border-0"
-            />
+          <div className="w-full aspect-video rounded-xl border border-[#ede2d2] bg-[#fbf7f1] shadow-2xs flex flex-col items-center justify-center gap-2 text-center p-4">
+            <Music className="w-6 h-6 text-[#966746]" />
+            <button onClick={play} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#966746] text-white text-xs font-bold hover:bg-[#7e5335]">
+              <Play className="w-3.5 h-3.5" /> Play in mini-player
+            </button>
           </div>
           <p className="text-[10px] text-[#9d8a7c] text-center italic">
             Press Play to listen • Paste your favorite playlist or lo-fi stream anytime

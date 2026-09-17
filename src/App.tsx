@@ -13,6 +13,7 @@ import { ExpandedProjectView } from '../components/projects/ExpandedProjectView'
 import { JoinCollaborationModal } from '../components/modals/JoinCollaborationModal';
 import { SettingsModal } from '../components/modals/SettingsModal';
 import { AuthModal } from '../components/auth/AuthModal';
+import { CozyMediaProvider } from '../components/home/cozy-media-context';
 import { seedInitialDemoData } from '../lib/seed';
 import { Sparkles, Database } from 'lucide-react';
 
@@ -181,7 +182,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <DashboardContent />
+        <CozyMediaProvider>
+          <DashboardContent />
+        </CozyMediaProvider>
       </ThemeProvider>
     </AuthProvider>
   );
