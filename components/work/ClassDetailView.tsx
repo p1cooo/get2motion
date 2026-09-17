@@ -129,9 +129,6 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#43342a] tracking-tight">
                 {diary.studentName}
               </h1>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#f4ebe1] text-[#735e4f] border border-[#ded2c0]">
-                Rating: 1420 USCF
-              </span>
             </div>
             <p className="text-sm font-semibold text-[#8c7a6e] mt-1">
               {diary.subtitle}
@@ -323,7 +320,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
               <BookOpen className="w-3.5 h-3.5" />
             </div>
             <h3 className="text-sm sm:text-base font-bold text-[#43342a]">
-              Next Lesson Note
+              Notes
             </h3>
           </div>
 

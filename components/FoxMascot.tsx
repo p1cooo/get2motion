@@ -25,7 +25,7 @@ export const FoxMascot: React.FC<FoxMascotProps> = ({
     return (
       <img
         src={imagePath}
-        alt={`Pico the Fox (${state})`}
+        alt={`Motion fox (${state})`}
         width={size}
         height={state === 'sleeping' ? size * 0.72 : size}
         onError={() => setImgFailed(true)}
@@ -136,7 +136,7 @@ export const FoxMascot: React.FC<FoxMascotProps> = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={`select-none drop-shadow-sm transition-transform duration-300 hover:scale-105 ${className}`}
-      aria-label="Pico Fox Mascot"
+      aria-label="Motion fox mascot"
     >
       <defs>
         <linearGradient id="foxFurAwake" x1="20" y1="20" x2="80" y2="80" gradientUnits="userSpaceOnUse">

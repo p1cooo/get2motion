@@ -166,7 +166,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
         {!imgFailed ? (
           <img
             src={currentSrc}
-            alt="Pico Dashboard Header Banner"
+            alt="Motion header banner"
             onError={handleImgError}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0 transition-all duration-300"
             style={{ objectPosition: bannerPosition }}

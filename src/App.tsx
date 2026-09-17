@@ -133,9 +133,9 @@ function DashboardContent() {
       <footer className="py-4 border-t border-[#ede3d4] bg-[#faf6ef] text-center text-xs text-[#9d8a7c]">
         <div className="max-w-[1420px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span>Pico&apos;s Dashboard</span>
+            <img src="/assets/branding/motion-logo.png" alt="Motion — Skip motivation. Get to Motion." className="h-12 w-auto object-contain" />
             <span className="text-[#c4b5a5]">•</span>
-            <span>Simple enough that I actually want to use it</span>
+            <span>Skip motivation. Get to Motion.</span>
           </div>
 
           <div className="flex items-center gap-3">

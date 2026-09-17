@@ -203,7 +203,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         setResources(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as ResourceItem));
       }),
       onSnapshot(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId)), (snapshot) => {
-        setNotes(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as JournalEntry));
+        setNotes(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as JournalEntry).sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
       }),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -328,7 +328,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       };
 
       if (user) void addDoc(collection(db, 'assessmentNotes'), newEntry);
-      else setNotes((prev) => [newEntry, ...prev]);
+      else setNotes((prev) => [...prev, newEntry]);
       setBlankNoteText('');
     }
   };

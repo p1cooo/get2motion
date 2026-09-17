@@ -316,7 +316,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
             Work & Coaching Schedule
           </h1>
           <p className="text-xs sm:text-sm text-[#8c7a6e]">
-            Manage private chess coaching, group lessons, student journals, and recurring routines.
+            Manage classes, events, session notes, and recurring routines.
           </p>
         </div>
 
@@ -510,9 +510,8 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
                             handleDragStart(e, entry);
                           }}
                           onClick={(e) => {
-                            // Clicking entry directly opens Day View for that date
                             e.stopPropagation();
-                            handleDayClick(dayNum);
+                            handleSelect(entry.workItemId, entry.date);
                           }}
                           className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-lg border ${colorConfig.bg} ${colorConfig.text} ${colorConfig.border} truncate transition-all cursor-grab active:cursor-grabbing hover:scale-[1.01] shadow-2xs flex items-center gap-1`}
                           title={`${entry.title} (${entry.time})`}

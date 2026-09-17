@@ -104,7 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <FoxMascot state="sleeping" size={75} />
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#43342a] tracking-tight">
-            {mode === 'signin' ? 'Welcome back to Pico' : 'Join Pico’s Dashboard'}
+            {mode === 'signin' ? 'Welcome back to Motion' : 'Join Motion'}
           </h2>
           <p className="text-xs sm:text-sm text-[#8c7a6e] mt-1">
             {mode === 'signin'

@@ -274,7 +274,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
             <div className="absolute w-36 h-36 rounded-full bg-[#faefe0] -top-6 -right-6 pointer-events-none opacity-50" />
             <Sparkles className="relative w-7 h-7 text-[#cfa361] mb-2" />
             <div className="relative text-sm font-serif italic text-[#4a3b31]">One gentle step is enough for today.</div>
-            <div className="relative mt-1 text-[11px] text-[#9d8a7c] font-medium tracking-wide">Keep your pace, Pico.</div>
+            <div className="relative mt-1 text-[11px] text-[#9d8a7c] font-medium tracking-wide">Keep your pace, Motion.</div>
           </div>
 
           {/* 2. Main Quest Focus Card (Supports MULTIPLE Main Quest tasks with fixed/max-height scrolling) */}
