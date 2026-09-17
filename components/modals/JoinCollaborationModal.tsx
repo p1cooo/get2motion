@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Users, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
+import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
 import confetti from 'canvas-confetti';
 
@@ -28,10 +28,13 @@ export const JoinCollaborationModal: React.FC<JoinCollaborationModalProps> = ({
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedCode = code.trim().toUpperCase();
-    if (!normalizedCode) return;
+    if (!/^[A-Z]{5}$/.test(normalizedCode)) {
+      setErrorMsg('Enter the five-letter code shared by your teammate.');
+      return;
+    }
 
     // Direct match for demo assessment
-    if (normalizedCode === 'CS301-TEAM' || normalizedCode === 'CSC1215-FINAL') {
+    if (normalizedCode === 'KJQTX') {
       try {
         confetti({ particleCount: 30, spread: 60 });
       } catch {}
@@ -41,7 +44,7 @@ export const JoinCollaborationModal: React.FC<JoinCollaborationModalProps> = ({
     }
 
     if (!user) {
-      setErrorMsg('Please sign in or use demo code "CS301-TEAM" to preview collaboration.');
+      setErrorMsg('Please sign in or use demo code “KJQTX” to preview collaboration.');
       return;
     }
 
@@ -105,17 +108,11 @@ export const JoinCollaborationModal: React.FC<JoinCollaborationModalProps> = ({
             </span>
             <h3 className="text-base font-bold text-[#43342a]">Join Group Assessment</h3>
           </div>
-          <button
-            onClick={onClose}
-            className="text-xs text-[#8c7a6e] hover:text-[#43342a] cursor-pointer"
-          >
-            Cancel
-          </button>
         </div>
 
         <p className="text-xs text-[#8c7a6e] mt-3 leading-relaxed">
           Enter the collaboration code shared by your teammate (for example{' '}
-          <span className="font-mono font-semibold text-[#544133]">CS301-TEAM</span>) to view
+          <span className="font-mono font-semibold tracking-[0.2em] text-[#544133]">KJQTX</span>) to view
           assessment tasks, notes, and resources.
         </p>
 
@@ -136,9 +133,11 @@ export const JoinCollaborationModal: React.FC<JoinCollaborationModalProps> = ({
               required
               autoFocus
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. CS301-TEAM"
-              className="w-full px-4 py-2.5 text-sm font-mono tracking-wider rounded-xl border border-[#ede3d4] bg-[#faf7f2] text-[#43342a] placeholder-[#ad9d91] focus:outline-none focus:ring-1 focus:ring-[#966746]"
+              onChange={(e) => setCode(e.target.value.replace(/[^a-z]/gi, '').toUpperCase().slice(0, 5))}
+              placeholder="KJQTX"
+              maxLength={5}
+              pattern="[A-Z]{5}"
+              className="w-full px-4 py-2.5 text-center text-sm font-mono font-semibold tracking-[0.28em] uppercase rounded-xl border border-[#ede3d4] bg-[#faf7f2] text-[#43342a] placeholder-[#ad9d91] focus:outline-none focus:ring-1 focus:ring-[#966746]"
             />
           </div>
 

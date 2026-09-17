@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { addDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import {
   GraduationCap,
   Calendar,
@@ -32,6 +32,12 @@ export const StudyView: React.FC<StudyViewProps> = ({
   const handleOpenJoin = onOpenJoinCollab || onOpenJoinModal || (() => {});
   const { user } = useAuth();
   const [assessments, setAssessments] = useState<Assessment[]>(DEMO_ASSESSMENTS);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newType, setNewType] = useState<Assessment['type']>('assignment');
+  const [newName, setNewName] = useState('');
+  const [newCourseCode, setNewCourseCode] = useState('');
+  const [newDate, setNewDate] = useState('');
+  const [newWeight, setNewWeight] = useState('');
 
   useEffect(() => {
     if (!user) {
@@ -61,6 +67,42 @@ export const StudyView: React.FC<StudyViewProps> = ({
     setSubView('overview');
   };
 
+  const openAdd = (type: Assessment['type'] = 'assignment') => {
+    setNewType(type);
+    setIsAddOpen(true);
+  };
+
+  const createAssessment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const date = newDate || new Date().toISOString().slice(0, 10);
+    const draft = {
+      name: newName.trim(),
+      courseCode: newCourseCode.trim().toUpperCase(),
+      type: newType,
+      date,
+      week: 1,
+      weight: Number(newWeight) || 0,
+      status: 'Upcoming' as const,
+      pinned: false,
+      collaborationEnabled: false,
+      collaborationCode: null,
+      memberIds: [],
+      createdAt: new Date().toISOString(),
+    };
+    if (!draft.name || !draft.courseCode) return;
+
+    if (user) {
+      const reference = await addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
+      setIsAddOpen(false);
+      onSelectAssessment(reference.id);
+      return;
+    }
+
+    const id = `guest-assessment-${Date.now()}`;
+    setAssessments((current) => [{ ...draft, id, ownerId: 'guest' }, ...current]);
+    setIsAddOpen(false);
+  };
+
   // Tests & Assignments arrays
   const allTests = assessments.filter((a) => a.type === 'test');
   const allAssignments = assessments.filter((a) => a.type === 'assignment');
@@ -77,7 +119,10 @@ export const StudyView: React.FC<StudyViewProps> = ({
         onBack={returnToOverview}
         onSelectAssessment={onSelectAssessment}
         assessments={assessments}
-        onAddNewTest={() => onSelectAssessment('demo-test-1')}
+        onAddNewTest={() => {
+          returnToOverview();
+          openAdd('test');
+        }}
       />
     );
   }
@@ -88,7 +133,10 @@ export const StudyView: React.FC<StudyViewProps> = ({
         onBack={returnToOverview}
         onSelectAssessment={onSelectAssessment}
         assessments={assessments}
-        onAddNewAssignment={() => onSelectAssessment('demo-assessment-cs-proposal')}
+        onAddNewAssignment={() => {
+          returnToOverview();
+          openAdd('assignment');
+        }}
       />
     );
   }
@@ -117,7 +165,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
           </button>
 
           <button
-            onClick={() => onSelectAssessment('demo-assessment-cs-proposal')}
+            onClick={() => openAdd()}
             id="study-add-assessment-btn"
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#966746] hover:bg-[#7e5335] text-white text-xs sm:text-sm font-bold transition-all cursor-pointer shadow-xs"
           >
@@ -315,6 +363,34 @@ export const StudyView: React.FC<StudyViewProps> = ({
           ))}
         </div>
       </div>
+
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/35 backdrop-blur-xs">
+          <form onSubmit={createAssessment} className="w-full max-w-md rounded-2xl border border-[#ede3d4] bg-[#fffdf9] p-6 shadow-2xl space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-[#43342a]">Add Assessment</h2>
+              <p className="mt-1 text-xs text-[#8c7a6e]">Create a new test or assignment.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(['test', 'assignment'] as const).map((type) => (
+                <button key={type} type="button" onClick={() => setNewType(type)} className={`rounded-xl border px-3 py-2 text-xs font-bold capitalize ${newType === type ? 'border-[#966746] bg-[#966746] text-white' : 'border-[#ede3d4] bg-[#faf7f2] text-[#786659]'}`}>
+                  {type}
+                </button>
+              ))}
+            </div>
+            <input required autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Assessment name" className="w-full rounded-xl border border-[#ede3d4] bg-[#faf7f2] px-3 py-2 text-sm text-[#43342a] focus:outline-none focus:ring-1 focus:ring-[#966746]" />
+            <input required value={newCourseCode} onChange={(e) => setNewCourseCode(e.target.value)} placeholder="Course code" className="w-full rounded-xl border border-[#ede3d4] bg-[#faf7f2] px-3 py-2 text-sm text-[#43342a] focus:outline-none focus:ring-1 focus:ring-[#966746]" />
+            <div className="grid grid-cols-2 gap-3">
+              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="w-full rounded-xl border border-[#ede3d4] bg-[#faf7f2] px-3 py-2 text-sm text-[#43342a] focus:outline-none focus:ring-1 focus:ring-[#966746]" />
+              <input type="number" min="0" max="100" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} placeholder="Weight %" className="w-full rounded-xl border border-[#ede3d4] bg-[#faf7f2] px-3 py-2 text-sm text-[#43342a] focus:outline-none focus:ring-1 focus:ring-[#966746]" />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setIsAddOpen(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-[#786659] hover:bg-[#f6eee3]">Cancel</button>
+              <button type="submit" className="rounded-xl bg-[#966746] px-4 py-2 text-xs font-bold text-white hover:bg-[#7e5335]">Create Assessment</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

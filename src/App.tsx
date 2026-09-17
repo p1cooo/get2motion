@@ -14,8 +14,6 @@ import { JoinCollaborationModal } from '../components/modals/JoinCollaborationMo
 import { SettingsModal } from '../components/modals/SettingsModal';
 import { AuthModal } from '../components/auth/AuthModal';
 import { CozyMediaProvider } from '../components/home/cozy-media-context';
-import { seedInitialDemoData } from '../lib/seed';
-import { Sparkles, Database } from 'lucide-react';
 
 function getInitialTab(): ActiveTab {
   return window.location.pathname.startsWith('/study') ? 'study' : 'home';
@@ -36,7 +34,6 @@ function DashboardContent() {
   const [showCollabModal, setShowCollabModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   // Tab switcher with sub-view resets
   const handleTabChange = (tab: ActiveTab) => {
@@ -46,21 +43,6 @@ function DashboardContent() {
     setSelectedWorkItemId(null);
     setSelectedWorkDateStr(null);
     setSelectedProjectId(null);
-  };
-
-  const handleSeedData = async () => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-    setIsSeeding(true);
-    try {
-      await seedInitialDemoData(user.uid);
-      window.location.reload();
-    } catch (e) {
-      console.error(e);
-      setIsSeeding(false);
-    }
   };
 
   return (
@@ -129,7 +111,7 @@ function DashboardContent() {
           ))}
       </div>
 
-      {/* Footer / Quick Seed Floating Pill */}
+      {/* Footer */}
       <footer className="py-4 border-t border-[#ede3d4] bg-[#faf6ef] text-center text-xs text-[#9d8a7c]">
         <div className="max-w-[1420px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -138,20 +120,9 @@ function DashboardContent() {
             <span>Skip motivation. Get to Motion.</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleSeedData}
-              disabled={isSeeding}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#fffdf9] hover:bg-[#f6eee3] text-[#786659] border border-[#ede3d4] shadow-2xs transition-colors cursor-pointer"
-              title="Populate your database with the sample courses, coaching classes, and projects from the reference designs"
-            >
-              <Database className="w-3 h-3 text-[#966746]" />
-              <span>{isSeeding ? 'Loading sample data...' : 'Seed Reference Data'}</span>
-            </button>
-            <span className="text-[11px] text-[#b3a496]">
-              {user ? user.displayName || user.email : 'Signed in as Guest'}
-            </span>
-          </div>
+          <span className="text-[11px] text-[#b3a496]">
+            {user ? user.displayName || user.email : 'Signed in as Guest'}
+          </span>
         </div>
       </footer>
 

@@ -84,6 +84,8 @@ Lint, typecheck, and production build pass after this stage. Continue with remai
 - [x] Generate and persist unique 5-letter collaboration codes; Copy / Regenerate retained
 - [ ] Authenticated browser regression: fields, tasks, assignees, resources, notes, codes, refresh/navigation, separate records
 - [ ] Replace client-side collaboration membership join with a trusted redemption endpoint before production deployment
+- [x] Replace the hardcoded Add Assessment demo route with a creation form and unique signed-in Firestore record
+- [x] Normalize Join Group Assessment's UI and input to the five-letter collaboration-code format
 
 Run typecheck/build before moving on.
 
@@ -136,6 +138,7 @@ Run typecheck/build before moving on.
 - [ ] Prep/To-do quick-entry
 - [ ] Consistent back nav
 - [ ] Move Work prep checklist to canonical `tasks` records (it currently persists within the work occurrence)
+- [x] Pass selected work event ID/date into detail and remove chess-specific Current Focus presentation
 
 Run typecheck/build before moving on.
 
@@ -187,6 +190,8 @@ Only after core UI/logic is stable.
 - [ ] Run typecheck
 - [ ] Run production build
 - [ ] Document remaining limitations
+- [x] Remove the normal signed-in reference-data seed control without deleting stored data
+- [ ] Identify and remove only unequivocally disposable development records after authenticated end-to-end verification
 
 ## Completion report
 When V1 pass is complete, report:

@@ -131,6 +131,14 @@ Visual styling in the lower portions of several pages is already close to the de
 - Things To Do defaults to ascending `createdAt` order, and guest quick entry appends new tasks instead of prepending them. There is no separate persisted manual-sort field in the current task model.
 - Cozy Media settings and the YouTube iframe now live in an app-level context. The persistent floating mini-player stays mounted during SPA navigation and provides play, pause, and playlist-only previous/next commands. Browser verification is awaiting an available browser surface.
 
+### Final cleanup preparation (17 Sep 2026)
+
+- Join Group Assessment now uses the same five-letter uppercase code format as Assessment Detail, with the redundant header Cancel action removed.
+- Add Assessment now opens a focused creation form. Signed-in users receive a new Firestore document ID and navigate only to that new record; guest creations remain in the isolated local preview list.
+- Work event selection passes each calendar entry's own ID/date into the detail view. The detail view no longer binds every event to the Joshua diary, and its chess-specific Current Focus block is removed.
+- The signed-in footer no longer exposes the development reference-data seeding action. No Firestore, Storage, or Auth records have been deleted: authenticated end-to-end verification is still required before any identifiable development data can be safely removed.
+- Focused guest-mode browser checks confirmed that Add Assessment opens its form rather than selecting a demo record, Join Group Assessment exposes only its bottom Cancel action and compact code input, and a non-Joshua Work event opens an event-specific detail page with the three generic journal sections. The local browser console reported no errors for these checks.
+
 ### Work
 
 The month calendar visual design was close to the desired layout and should be preserved.

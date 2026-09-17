@@ -108,6 +108,8 @@ Check items only after implementation and verification.
 - [ ] Copy works
 - [ ] Regenerate works
 - [ ] Collaboration access is assessment-scoped
+- [x] Add Assessment opens a creation form rather than an unrelated demo record
+- [x] Guest browser sanity check: Add Assessment and compact Join Group Assessment modal render without console errors
 
 ## Work Month View
 - [ ] Signed-in Work create, reschedule, and refresh persistence (implemented; awaiting authenticated user verification)
@@ -160,6 +162,8 @@ Check items only after implementation and verification.
 - [ ] Next Lesson Notes quick-entry works
 - [ ] Prep/To-do quick-entry works
 - [ ] Back to Work Calendar consistent
+- [x] Detail title is selected-event-specific; chess-only Current Focus and rating UI are not presented
+- [x] Guest browser sanity check: a non-Joshua calendar event opens its own generic detail view
 
 ## Projects main/detail
 - [x] Signed-in Projects main/detail is Firestore-backed without visual-only drag movement

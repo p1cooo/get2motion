@@ -10,13 +10,12 @@ import {
   FileText,
   Plus,
   Check,
-  Sparkles,
   BookOpen,
   Repeat,
   ChevronDown,
   Trash2,
 } from 'lucide-react';
-import { DEMO_JOSHUA_DIARY } from '../../lib/demo-data';
+import { DEMO_JOSHUA_DIARY, DEMO_SEPTEMBER_ENTRIES } from '../../lib/demo-data';
 
 interface ClassDetailViewProps {
   workItemId: string;
@@ -37,14 +36,27 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
   dateStr,
   onBack,
 }) => {
-  const diary = DEMO_JOSHUA_DIARY;
+  const entry =
+    DEMO_SEPTEMBER_ENTRIES.find((item) => item.workItemId === workItemId && item.date === dateStr) ??
+    DEMO_SEPTEMBER_ENTRIES.find((item) => item.workItemId === workItemId);
+  const isJoshua = workItemId === 'work-joshua';
+  const diary = isJoshua
+    ? DEMO_JOSHUA_DIARY
+    : {
+        ...DEMO_JOSHUA_DIARY,
+        studentName: entry?.title ?? 'Work item',
+        subtitle: `${entry?.date ?? dateStr} • ${entry?.type === 'class' ? 'Class details' : 'Event details'}`,
+        whatHappened: [],
+        nextLesson: [],
+        todoPrep: [],
+      };
 
   // Editable Session Date, Time, and Recurrence
   const [sessionDate, setSessionDate] = useState(dateStr || '2026-09-06');
   const [isEditingDate, setIsEditingDate] = useState(false);
 
-  const [startTime, setStartTime] = useState('12:00 PM');
-  const [endTime, setEndTime] = useState('1:00 PM');
+  const [startTime, setStartTime] = useState(entry?.time.split('–')[0]?.trim() || '12:00 PM');
+  const [endTime, setEndTime] = useState(entry?.time.split('–')[1]?.trim() || '1:00 PM');
   const [isEditingTime, setIsEditingTime] = useState(false);
 
   const [recurrence, setRecurrence] = useState<RecurrenceType>('Every week');
@@ -123,7 +135,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#e8f1e9] text-[#557859] text-xs font-bold mb-2">
               <span className="w-2 h-2 rounded-full bg-[#557859]" />
-              Class Journal • Individual Coaching
+              {entry?.type === 'class' ? 'Class details' : 'Event details'}
             </div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#43342a] tracking-tight">
@@ -248,26 +260,6 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
           </div>
         </div>
 
-        {/* Student Goals & Progress Tags */}
-        <div className="pt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[#8c7a6e]">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-[#544133]">Current Focus:</span>
-            <span className="px-2.5 py-1 rounded-full bg-[#fbf7f1] border border-[#ede2d2] text-[#6c5b4f]">
-              Endgame Calculation
-            </span>
-            <span className="px-2.5 py-1 rounded-full bg-[#fbf7f1] border border-[#ede2d2] text-[#6c5b4f]">
-              French Defense Winawer
-            </span>
-            <span className="px-2.5 py-1 rounded-full bg-[#fbf7f1] border border-[#ede2d2] text-[#6c5b4f]">
-              Tactical Vision
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#cfa361]" />
-            <span>Next session automatically scheduled via weekly pattern</span>
-          </div>
-        </div>
       </div>
 
       {/* =========================================================================
