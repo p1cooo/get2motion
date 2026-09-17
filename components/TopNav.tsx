@@ -35,7 +35,6 @@ export const TopNav: React.FC<TopNavProps> = ({
       className="w-full max-w-[1420px] mx-auto px-4 sm:px-6 my-4 flex items-center justify-between gap-3"
       aria-label="Main Navigation"
     >
-      <img src="/assets/branding/motion-emblem.png" alt="Motion" className="hidden md:block w-10 h-10 object-contain shrink-0" />
       {/* Centered Navigation Pills - Dynamic theme styling */}
       <div className={`flex items-center gap-1.5 sm:gap-2.5 ${themeConfig.cardBg} p-1.5 rounded-full border ${themeConfig.borderColor} shadow-xs`}>
         {navItems.map((item) => {

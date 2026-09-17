@@ -58,9 +58,20 @@ export const useCozyMedia = () => {
 
 const CozyMediaPlayer: React.FC<{ frameRef: React.RefObject<HTMLIFrameElement | null>; parsed: NonNullable<ReturnType<typeof parseYouTubeUrl>> }> = ({ frameRef, parsed }) => {
   const { play, pause, previous, next, isPlaylist } = useCozyMedia();
-  return <aside className="fixed z-40 bottom-4 right-4 w-56 rounded-2xl overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl" aria-label="Cozy media mini-player">
+  const [slot, setSlot] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    const place = () => {
+      const rect = document.getElementById('cozy-media-player-slot')?.getBoundingClientRect();
+      setSlot(rect && rect.width > 0 ? rect : null);
+    };
+    place();
+    window.addEventListener('resize', place);
+    const timer = window.setInterval(place, 250);
+    return () => { window.removeEventListener('resize', place); window.clearInterval(timer); };
+  }, []);
+  return <aside style={slot ? { position: 'fixed', top: slot.top, left: slot.left, width: slot.width, height: slot.height } : undefined} className={`z-40 overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl ${slot ? 'rounded-xl' : 'fixed bottom-4 right-4 w-56 rounded-2xl'}`} aria-label={slot ? 'Cozy media player' : 'Cozy media mini-player'}>
     <iframe ref={frameRef} src={`${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}enablejsapi=1&playsinline=1`} title="Cozy Media Stream" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" className="block w-full aspect-video border-0" />
-    <div className="flex items-center justify-center gap-2 p-1.5">
+    <div className={`${slot ? 'hidden' : 'flex'} items-center justify-center gap-2 p-1.5`}>
       <button onClick={previous} disabled={!isPlaylist} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3] disabled:opacity-35" title="Previous"><ChevronLeft className="w-4 h-4" /></button>
       <button onClick={pause} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3]" title="Pause"><Pause className="w-4 h-4" /></button>
       <button onClick={play} className="p-1.5 rounded-lg bg-[#966746] text-white hover:bg-[#7e5335]" title="Play"><Play className="w-4 h-4" /></button>

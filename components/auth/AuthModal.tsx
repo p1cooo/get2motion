@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FoxMascot } from '../FoxMascot';
 import { X, Sparkles, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 
@@ -100,8 +99,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Top Fox Mascot Area */}
         <div className="flex flex-col items-center text-center mt-2 mb-4">
-          <div className="w-20 h-20 rounded-full bg-[#fbf5eb] border border-[#ede2d2] flex items-center justify-center shadow-2xs mb-3">
-            <FoxMascot state="sleeping" size={75} />
+          <div className="w-20 h-20 rounded-full bg-[#fbf5eb] border border-[#ede2d2] flex items-center justify-center shadow-2xs mb-3 overflow-hidden">
+            <img src="/assets/branding/motion-emblem.png" alt="Motion" className="w-full h-full object-contain" />
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#43342a] tracking-tight">
             {mode === 'signin' ? 'Welcome back to Motion' : 'Join Motion'}
@@ -109,7 +108,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <p className="text-xs sm:text-sm text-[#8c7a6e] mt-1">
             {mode === 'signin'
               ? 'Your cozy personal productivity sanctuary'
-              : 'Create a quiet space for your studies and coaching'}
+              : 'Create a quiet space for your studies and work'}
           </p>
         </div>
 

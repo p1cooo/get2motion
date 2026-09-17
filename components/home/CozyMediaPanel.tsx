@@ -410,12 +410,7 @@ export const CozyMediaPanel: React.FC = () => {
       ) : settings.mode === 'youtube' && parsedEmbed ? (
         /* The persistent iframe lives at app level so navigation does not stop playback. */
         <div className="flex flex-col gap-2">
-          <div className="w-full aspect-video rounded-xl border border-[#ede2d2] bg-[#fbf7f1] shadow-2xs flex flex-col items-center justify-center gap-2 text-center p-4">
-            <Music className="w-6 h-6 text-[#966746]" />
-            <button onClick={play} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#966746] text-white text-xs font-bold hover:bg-[#7e5335]">
-              <Play className="w-3.5 h-3.5" /> Play in mini-player
-            </button>
-          </div>
+          <div id="cozy-media-player-slot" className="w-full aspect-video rounded-xl border border-[#ede2d2] bg-[#fbf7f1] shadow-2xs" />
           <p className="text-[10px] text-[#9d8a7c] text-center italic">
             Press Play to listen • Paste your favorite playlist or lo-fi stream anytime
           </p>
