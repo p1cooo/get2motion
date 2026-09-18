@@ -50,19 +50,11 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
   }, [bannerUrl]);
 
   const handleImgError = () => {
-    const defaultWebp: string = DEFAULT_BANNER_PATH;
-    const defaultPng: string = '/assets/banner/default-banner.png';
-    const defaultSvg: string = '/assets/banner/default-banner.svg';
-
-    if (currentSrc !== defaultWebp) {
-      setCurrentSrc(defaultWebp);
-    } else if (currentSrc !== defaultPng) {
-      setCurrentSrc(defaultPng);
-    } else if (currentSrc !== defaultSvg) {
-      setCurrentSrc(defaultSvg);
-    } else {
+    if (currentSrc === DEFAULT_BANNER_PATH) {
       setImgFailed(true);
+      return;
     }
+    setCurrentSrc(DEFAULT_BANNER_PATH);
   };
 
   // Robust file processor for both input change and drag-and-drop
@@ -133,7 +125,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
   const currentThemeList = (Object.keys(THEME_CONFIGS) as ThemePreset[]);
 
   const BANNER_PRESETS = [
-    { name: 'Morning Dawn', path: '/assets/banner/default-banner.webp', icon: '☀️' },
+    { name: 'Morning Fox', path: DEFAULT_BANNER_PATH, icon: '🦊' },
     { name: 'Sunset Glow', path: '/assets/banner/dashboard-banner-sunset.webp', icon: '🌅' },
     { name: 'Starry Night', path: '/assets/banner/dashboard-banner-night.webp', icon: '✨' },
     { name: 'Sakura Petals', path: '/assets/banner/dashboard-banner-sakura.webp', icon: '🌸' },

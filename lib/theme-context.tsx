@@ -130,7 +130,16 @@ export const THEME_CONFIGS: Record<ThemePreset, ThemeConfig> = {
   },
 };
 
-export const DEFAULT_BANNER_PATH = '/assets/banner/default-banner.webp';
+export const DEFAULT_BANNER_PATH = '/assets/fox/home_fox.png';
+
+const getBannerUrl = (value: unknown) => {
+  if (typeof value !== 'string') return DEFAULT_BANNER_PATH;
+  const url = value.trim();
+  return url && url !== '/assets/banner/default-banner.webp' &&
+    (url.startsWith('data:image/') || url.startsWith('/assets/'))
+    ? url
+    : DEFAULT_BANNER_PATH;
+};
 
 interface ThemeContextType {
   theme: ThemePreset;
@@ -158,9 +167,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (profile.theme && THEME_CONFIGS[profile.theme]) {
         setThemeState(profile.theme);
       }
-      if (profile.bannerUrl) {
-        setBannerUrlState(profile.bannerUrl);
-      }
+      setBannerUrlState(getBannerUrl(profile.bannerUrl));
       if (profile.bannerPosition && ['center', 'top', 'bottom'].includes(profile.bannerPosition)) {
         setBannerPositionState(profile.bannerPosition as any);
       }
@@ -172,9 +179,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setThemeState(savedTheme);
         }
         const savedBanner = localStorage.getItem('pico_banner_url');
-        if (savedBanner) {
-          setBannerUrlState(savedBanner);
-        }
+        setBannerUrlState(getBannerUrl(savedBanner));
         const savedPos = localStorage.getItem('pico_banner_pos') as any;
         if (savedPos && ['center', 'top', 'bottom'].includes(savedPos)) {
           setBannerPositionState(savedPos);
@@ -204,15 +209,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const setBannerUrl = (url: string) => {
-    setBannerUrlState(url);
+    const nextUrl = getBannerUrl(url);
+    setBannerUrlState(nextUrl);
     try {
-      localStorage.setItem('pico_banner_url', url);
+      localStorage.setItem('pico_banner_url', nextUrl);
     } catch {}
 
     if (user) {
       try {
         const userDocRef = doc(db, 'users', user.uid);
-        updateDoc(userDocRef, { bannerUrl: url }).catch((err) =>
+        updateDoc(userDocRef, { bannerUrl: nextUrl }).catch((err) =>
           console.warn('Failed to save bannerUrl to firestore:', err)
         );
       } catch (err) {
