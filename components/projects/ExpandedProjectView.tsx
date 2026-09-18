@@ -17,11 +17,6 @@ import {
   X,
   Trash2,
 } from 'lucide-react';
-import {
-  DEMO_PROJECTS,
-  DEMO_BINGO_TASKS,
-  DEMO_BINGO_NOTES,
-} from '../../lib/demo-data';
 import { Project } from '../../lib/types';
 
 interface ExpandedProjectViewProps {
@@ -37,8 +32,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   project: selectedProject,
   onBack,
 }) => {
-  const demoProject = DEMO_PROJECTS.find((p) => p.id === projectId);
-  const initialProject = selectedProject ?? demoProject ?? {
+  const initialProject = selectedProject ?? {
     id: projectId,
     ownerId: 'guest',
     name: 'New project',
@@ -67,7 +61,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [isEditingDate, setIsEditingDate] = useState(false);
 
   // Tasks with inline editing + blank-row quick entry
-  const [tasks, setTasks] = useState(demoProject ? DEMO_BINGO_TASKS : []);
+  const [tasks, setTasks] = useState([]);
   const [blankTaskText, setBlankTaskText] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
@@ -76,16 +70,12 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [ideas, setIdeas] = useState<string[]>(
     initialProject.ideas && initialProject.ideas.length > 0
       ? initialProject.ideas
-      : demoProject ? [
-          'Add audio sound effects when checking off bingo squares',
-          'Export board as shareable high-res PNG or PDF printable',
-          'Leaderboard for daily community bingo runs',
-        ] : []
+      : []
   );
   const [blankIdeaText, setBlankIdeaText] = useState('');
 
   // Notes with fixed-height scrolling container + blank-row quick entry
-  const [notes, setNotes] = useState<string[]>(demoProject ? DEMO_BINGO_NOTES : []);
+  const [notes, setNotes] = useState<string[]>([]);
   const [blankNoteText, setBlankNoteText] = useState('');
 
   // Task Handlers
@@ -117,7 +107,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
 
       const newTask = {
         id: `task-${Date.now()}`,
-        ownerId: 'demo-user-pico',
+        ownerId: initialProject.ownerId,
         title: blankTaskText.trim(),
         completed: false,
         completedAt: null,
@@ -128,7 +118,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
         showOnHome: false,
         parentType: 'project' as const,
         parentId: initialProject.id,
-        assignedToUserIds: ['demo-user-pico'],
+        assignedToUserIds: [initialProject.ownerId],
       };
 
       setTasks((prev) => [...prev, newTask]);

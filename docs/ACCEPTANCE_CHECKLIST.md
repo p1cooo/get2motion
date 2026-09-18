@@ -221,3 +221,13 @@ Check items only after implementation and verification.
 - [ ] Production build passes
 - [ ] Vercel deployment is ready
 - [x] Vite SPA rewrite is configured for Vercel
+
+## Production-readiness pass — 18 Sep 2026
+- [x] Production UI has no Demo Preview badge, Sign In / Demo wording, or demo-auth fallback.
+- [x] Unauthenticated visitors remain in the authentication flow.
+- [x] New authenticated accounts initialize Home, Study, Work, and Projects as empty owner-scoped data sets.
+- [x] Work calendar no longer falls back to sample events for authenticated users.
+- [x] Home media uses its card on Home and a single floating mini-player elsewhere.
+- [x] Signup enters the authenticated app with a clear success confirmation.
+- [x] Settings gear beside the user name is removed; sign-out remains available.
+- [ ] Authenticated Firebase browser, refresh, and Vercel deployment verification (requires production access).

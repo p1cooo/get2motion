@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   Lightbulb,
   Plus,
@@ -21,7 +22,8 @@ import {
   Check,
 } from 'lucide-react';
 import { Project } from '../../lib/types';
-import { DEMO_PROJECTS } from '../../lib/demo-data';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../lib/auth-context';
 
 interface ProjectsViewProps {
   onSelectProject: (projectId: string, project?: Project) => void;
@@ -31,7 +33,16 @@ interface ProjectsViewProps {
 export const ProjectsView: React.FC<ProjectsViewProps> = ({
   onSelectProject,
 }) => {
-  const [projects, setProjects] = useState<Project[]>(DEMO_PROJECTS);
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    if (!user) { setProjects([]); return; }
+    return onSnapshot(
+      query(collection(db, 'projects'), where('ownerId', '==', user.uid)),
+      (snapshot) => setProjects(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Project)),
+    );
+  }, [user]);
 
   // View More toggles
   const [showAllActive, setShowAllActive] = useState(false);
@@ -70,23 +81,21 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     const id = e.dataTransfer.getData('text/plain') || draggedProjId;
     if (!id) return;
 
+    const updatedProject = projects.find((project) => project.id === id);
+    const section = targetSection;
+    const status = section === 'active' ? 'Active' : section === 'completed' ? 'Completed' : 'Idea';
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
-        const newStatus =
-          targetSection === 'active'
-            ? 'Active'
-            : targetSection === 'completed'
-            ? 'Completed'
-            : 'Idea';
-
         return {
           ...p,
-          section: targetSection,
-          status: newStatus,
+          section,
+          status,
+          updatedAt: new Date().toISOString(),
         };
       })
     );
+    if (user && updatedProject) void updateDoc(doc(db, 'projects', id), { section, status, updatedAt: new Date().toISOString() });
     setDraggedProjId(null);
   };
 
@@ -96,7 +105,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
     const newProj: Project = {
       id: `proj-${Date.now()}`,
-      ownerId: 'demo-user-pico',
+      ownerId: user?.uid || '',
       name: newProjName.trim(),
       description: newProjDesc.trim() || 'A new personal endeavor.',
       section: newProjSection,
@@ -112,7 +121,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       updatedAt: new Date().toISOString(),
     };
 
-    setProjects((prev) => [newProj, ...prev]);
+    if (user) void addDoc(collection(db, 'projects'), newProj);
     setIsAddModalOpen(false);
     setNewProjName('');
     setNewProjDesc('');
@@ -226,6 +235,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           )}
         </div>
 
+        {activeProjects.length === 0 && <div className="rounded-2xl border border-dashed border-[#ded2c0] bg-[#fffefb]/70 p-6 text-center text-xs text-[#9d8a7c]">No active projects yet. Create one when you are ready.</div>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {visibleActive.map((item) => (
             <div
@@ -314,6 +324,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           )}
         </div>
 
+        {somedayProjects.length === 0 && <div className="rounded-2xl border border-dashed border-[#ded2c0] bg-[#fffefb]/70 p-6 text-center text-xs text-[#9d8a7c]">No ideas yet. Use New Project to capture one.</div>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {visibleSomeday.map((item) => (
             <div

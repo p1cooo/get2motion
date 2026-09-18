@@ -28,7 +28,7 @@ const CozyMediaContext = createContext<CozyMediaContextValue | null>(null);
 
 const sendPlayerCommand = (frame: HTMLIFrameElement | null, func: string) => frame?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
 
-export const CozyMediaProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+export const CozyMediaProvider: React.FC<React.PropsWithChildren<{ isHome: boolean }>> = ({ children, isHome }) => {
   const [settings, setSettings] = useState<CozyMediaSettings>(DEFAULT_SETTINGS);
   const frameRef = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
@@ -47,7 +47,7 @@ export const CozyMediaProvider: React.FC<React.PropsWithChildren> = ({ children 
     next: () => parsed?.type === 'playlist' && sendPlayerCommand(frameRef.current, 'nextVideo'),
     isPlaylist: parsed?.type === 'playlist',
   }), [settings, parsed?.type]);
-  return <CozyMediaContext.Provider value={value}>{children}{parsed && settings.mode === 'youtube' && <CozyMediaPlayer frameRef={frameRef} parsed={parsed} />}</CozyMediaContext.Provider>;
+  return <CozyMediaContext.Provider value={value}>{children}{parsed && settings.mode === 'youtube' && <CozyMediaPlayer frameRef={frameRef} parsed={parsed} isHome={isHome} />}</CozyMediaContext.Provider>;
 };
 
 export const useCozyMedia = () => {
@@ -56,20 +56,25 @@ export const useCozyMedia = () => {
   return context;
 };
 
-const CozyMediaPlayer: React.FC<{ frameRef: React.RefObject<HTMLIFrameElement | null>; parsed: NonNullable<ReturnType<typeof parseYouTubeUrl>> }> = ({ frameRef, parsed }) => {
+const CozyMediaPlayer: React.FC<{ frameRef: React.RefObject<HTMLIFrameElement | null>; parsed: NonNullable<ReturnType<typeof parseYouTubeUrl>>; isHome: boolean }> = ({ frameRef, parsed, isHome }) => {
   const { play, pause, previous, next, isPlaylist } = useCozyMedia();
-  const [slot, setSlot] = useState<DOMRect | null>(null);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const playerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const place = () => {
-      const rect = document.getElementById('cozy-media-player-slot')?.getBoundingClientRect();
-      setSlot(rect && rect.width > 0 ? rect : null);
+      setSlot(document.getElementById('cozy-media-player-slot'));
     };
     place();
-    window.addEventListener('resize', place);
-    const timer = window.setInterval(place, 250);
-    return () => { window.removeEventListener('resize', place); window.clearInterval(timer); };
-  }, []);
-  return <aside style={slot ? { position: 'fixed', top: slot.top, left: slot.left, width: slot.width, height: slot.height } : undefined} className={`z-40 overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl ${slot ? 'rounded-xl' : 'fixed bottom-4 right-4 w-56 rounded-2xl'}`} aria-label={slot ? 'Cozy media player' : 'Cozy media mini-player'}>
+    const observer = new MutationObserver(place);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => { window.removeEventListener('resize', place); observer.disconnect(); };
+  }, [isHome]);
+  useEffect(() => {
+    const player = playerRef.current;
+    const target = isHome ? slot : document.body;
+    if (player && target && player.parentElement !== target) target.appendChild(player);
+  }, [isHome, slot]);
+  return <aside ref={playerRef} className={`z-40 overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl ${isHome ? 'w-full rounded-xl' : 'fixed bottom-4 right-4 w-56 rounded-2xl'}`} aria-label={isHome ? 'Cozy media player' : 'Cozy media mini-player'}>
     <iframe ref={frameRef} src={`${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}enablejsapi=1&playsinline=1`} title="Cozy Media Stream" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" className="block w-full aspect-video border-0" />
     <div className={`${slot ? 'hidden' : 'flex'} items-center justify-center gap-2 p-1.5`}>
       <button onClick={previous} disabled={!isPlaylist} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3] disabled:opacity-35" title="Previous"><ChevronLeft className="w-4 h-4" /></button>

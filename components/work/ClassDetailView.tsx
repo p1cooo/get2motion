@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
 import {
   ArrowLeft,
   Calendar,
@@ -15,7 +16,9 @@ import {
   ChevronDown,
   Trash2,
 } from 'lucide-react';
-import { DEMO_JOSHUA_DIARY, DEMO_SEPTEMBER_ENTRIES } from '../../lib/demo-data';
+import type { CalendarEntryDemo } from '../../lib/demo-data';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../lib/auth-context';
 
 interface ClassDetailViewProps {
   workItemId: string;
@@ -36,20 +39,23 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
   dateStr,
   onBack,
 }) => {
-  const entry =
-    DEMO_SEPTEMBER_ENTRIES.find((item) => item.workItemId === workItemId && item.date === dateStr) ??
-    DEMO_SEPTEMBER_ENTRIES.find((item) => item.workItemId === workItemId);
-  const isJoshua = workItemId === 'work-joshua';
-  const diary = isJoshua
-    ? DEMO_JOSHUA_DIARY
-    : {
-        ...DEMO_JOSHUA_DIARY,
-        studentName: entry?.title ?? 'Work item',
-        subtitle: `${entry?.date ?? dateStr} • ${entry?.type === 'class' ? 'Class details' : 'Event details'}`,
-        whatHappened: [],
-        nextLesson: [],
-        todoPrep: [],
-      };
+  const { user } = useAuth();
+  const [entry, setEntry] = useState<CalendarEntryDemo | null>(null);
+  useEffect(() => {
+    if (!user) { setEntry(null); return; }
+    void getDoc(doc(db, 'workItems', workItemId)).then((snapshot) => {
+      if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) { setEntry(null); return; }
+      const data = snapshot.data() as Omit<CalendarEntryDemo, 'id' | 'workItemId'>;
+      setEntry({ ...data, id: snapshot.id, workItemId: snapshot.id, dayNum: Number(data.date?.slice(-2)) || 1 });
+    });
+  }, [user, workItemId]);
+  const diary = {
+    studentName: entry?.title ?? 'Work item',
+    subtitle: `${entry?.date ?? dateStr} • ${entry?.type === 'class' ? 'Class details' : 'Event details'}`,
+    whatHappened: [],
+    nextLesson: [],
+    todoPrep: [],
+  };
 
   // Editable Session Date, Time, and Recurrence
   const [sessionDate, setSessionDate] = useState(dateStr || '2026-09-06');

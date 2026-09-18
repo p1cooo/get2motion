@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Home, GraduationCap, Briefcase, Lightbulb, Settings, LogOut, Sparkles } from 'lucide-react';
+import { Home, GraduationCap, Briefcase, Lightbulb, LogOut } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { useTheme } from '../lib/theme-context';
 
@@ -10,14 +10,12 @@ export type ActiveTab = 'home' | 'study' | 'work' | 'projects';
 interface TopNavProps {
   activeTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
-  onOpenSettings?: () => void;
   onOpenAuth?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
   activeTab,
   onSelectTab,
-  onOpenSettings,
   onOpenAuth,
 }) => {
   const { user, profile, signOutUser } = useAuth();
@@ -57,24 +55,11 @@ export const TopNav: React.FC<TopNavProps> = ({
         })}
       </div>
 
-      {/* Right controls: Demo badge / Settings / User avatar */}
+      {/* Right controls: user avatar and sign-out */}
       <div className="flex items-center gap-2.5">
-        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f6eee3] text-[#7d6756] border border-[#ede2d2] text-xs font-medium">
-          <Sparkles className="w-3.5 h-3.5 text-[#cfa361]" />
-          <span>Demo Preview Mode</span>
-        </div>
-
         {user ? (
           <div className="flex items-center gap-2 bg-[#fffefb] px-3 py-1.5 rounded-full border border-[#ede2d2] shadow-xs">
-            <button
-              onClick={onOpenSettings}
-              id="settings-btn"
-              title="Semester & App Settings"
-              className="p-1 rounded-full text-[#827163] hover:text-[#43342a] hover:bg-[#f6eee3] transition-colors cursor-pointer"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-2 pl-1.5 border-l border-[#ede2d2]">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-[#df989f] text-white text-xs font-bold flex items-center justify-center select-none shadow-2xs">
                 {profile?.displayName ? profile.displayName.charAt(0).toUpperCase() : 'P'}
               </div>
@@ -100,7 +85,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <div className="w-5 h-5 rounded-full bg-[#df989f] text-white text-[10px] font-bold flex items-center justify-center">
               P
             </div>
-            <span>Sign In / Demo</span>
+            <span>Sign In</span>
           </button>
         )}
       </div>

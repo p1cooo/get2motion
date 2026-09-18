@@ -233,3 +233,11 @@ Do not use temporary generated-image URLs.
 7. Firebase/auth/data persistence
 8. Final regression pass
 9. Vercel deployment readiness
+
+## Production-readiness update — 18 Sep 2026
+
+- Production now requires Firebase authentication; the normal app no longer opens a guest/demo dashboard or offers a Demo Preview path.
+- New authenticated accounts begin with empty Home tasks, Study assessments, Work calendar entries, and Projects. Each view listens only to Firestore records whose `ownerId` is the current UID.
+- The Work calendar writes newly created entries to the owner-scoped `workItems` collection and its detail view loads the selected owner-scoped record.
+- The Home YouTube frame is portalled into its Cozy Media card on Home. On other sections the same mounted frame becomes the fixed mini-player, preserving its playback session.
+- Remaining limitation: authenticated Firebase and Vercel deployment verification needs valid production credentials/access; no production data was deleted during this pass.

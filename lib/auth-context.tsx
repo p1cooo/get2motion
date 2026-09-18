@@ -20,6 +20,8 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  signupSuccess: boolean;
+  dismissSignupSuccess: () => void;
   signInWithEmail: (e: string, p: string) => Promise<void>;
   signUpWithEmail: (displayName: string, e: string, p: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -34,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -93,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       await setDoc(doc(db, 'users', cred.user.uid), newProfile);
       setProfile(newProfile);
+      setSignupSuccess(true);
     }
   };
 
@@ -151,6 +155,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading,
+        signupSuccess,
+        dismissSignupSuccess: () => setSignupSuccess(false),
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,

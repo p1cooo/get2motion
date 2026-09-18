@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 import { Task } from '../../lib/types';
-import { DEMO_HOME_TASKS } from '../../lib/demo-data';
 import { CozyMediaPanel } from './CozyMediaPanel';
 import { db } from '../../lib/firebase';
 import confetti from 'canvas-confetti';
@@ -30,25 +29,14 @@ interface HomeViewProps {
 
 const isToday = (value: string) => new Date(value).toDateString() === new Date().toDateString();
 
-const createHomeDemoTasks = () => {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return DEMO_HOME_TASKS.map((task) =>
-    task.completed && task.completedAt
-      ? { ...task, completedAt: `${today}T${task.completedAt.slice(11, 23)}` }
-      : task
-  );
-};
-
 export const HomeView: React.FC<HomeViewProps> = () => {
   const { user } = useAuth();
 
-  // Local state seeded with demo data
-  const [tasks, setTasks] = useState<Task[]>(createHomeDemoTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     if (!user) {
-      setTasks(createHomeDemoTasks());
+      setTasks([]);
       return;
     }
     return onSnapshot(

@@ -21,7 +21,7 @@ function getInitialTab(): ActiveTab {
 }
 
 function DashboardContent() {
-  const { user } = useAuth();
+  const { user, loading, signupSuccess, dismissSignupSuccess } = useAuth();
   const { themeConfig } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
 
@@ -50,7 +50,14 @@ function DashboardContent() {
     setSelectedProject(null);
   };
 
+  if (loading) return <div className="min-h-screen bg-[#faf6ef]" />;
+
+  if (!user) {
+    return <AuthModal isOpen onClose={() => {}} />;
+  }
+
   return (
+    <CozyMediaProvider isHome={activeTab === 'home'}>
     <div className={`min-h-screen ${themeConfig.pageBg} ${themeConfig.textColor} flex flex-col transition-colors duration-300 selection:bg-[#f2dfce] selection:text-[#544133]`}>
       {/* 1. Cozy Landscape Banner with dynamically calculated Academic Week */}
       <CozyBanner onOpenSettings={() => setShowSettingsModal(true)} />
@@ -59,9 +66,15 @@ function DashboardContent() {
       <TopNav
         activeTab={activeTab}
         onSelectTab={handleTabChange}
-        onOpenSettings={() => setShowSettingsModal(true)}
         onOpenAuth={() => setShowAuthModal(true)}
       />
+
+      {signupSuccess && (
+        <div className="fixed top-5 left-1/2 z-50 -translate-x-1/2 rounded-full border border-[#cbe0cc] bg-[#edf4ee] px-4 py-2 text-sm font-semibold text-[#557859] shadow-lg">
+          Account created successfully.
+          <button onClick={dismissSignupSuccess} className="ml-3 text-[#557859]/70 hover:text-[#557859]" aria-label="Dismiss confirmation">×</button>
+        </div>
+      )}
 
       {/* 3. Main Views Container */}
       <div className="flex-1 pb-16">
@@ -140,7 +153,7 @@ function DashboardContent() {
           </div>
 
           <span className="text-[11px] text-[#b3a496]">
-            {user ? user.displayName || user.email : 'Signed in as Guest'}
+            {user.displayName || user.email}
           </span>
         </div>
       </footer>
@@ -165,6 +178,7 @@ function DashboardContent() {
         onClose={() => setShowAuthModal(false)}
       />
     </div>
+    </CozyMediaProvider>
   );
 }
 
@@ -172,9 +186,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <CozyMediaProvider>
-          <DashboardContent />
-        </CozyMediaProvider>
+        <DashboardContent />
       </ThemeProvider>
     </AuthProvider>
   );

@@ -31,13 +31,6 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import {
-  DEMO_ASSESSMENTS,
-  DEMO_CS_PROPOSAL_TASKS,
-  DEMO_CS_PROPOSAL_NOTES,
-  DEMO_CS_PROPOSAL_RESOURCES,
-  DEMO_TEAM_MEMBERS,
-} from '../../lib/demo-data';
 import { db, getAppStorage } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
 import { Assessment, AssessmentResource, Task } from '../../lib/types';
@@ -65,13 +58,6 @@ interface JournalEntry {
   createdAt: string;
 }
 
-const COLLAB_MEMBERS = [
-  { id: 'demo-user-pico', name: 'Pico', initial: 'P', color: '#966746', bg: '#f5ece0' },
-  { id: 'demo-user-alyssa', name: 'Alyssa', initial: 'A', color: '#8a4b53', bg: '#faeaec' },
-  { id: 'demo-user-wayne', name: 'Wayne', initial: 'W', color: '#557859', bg: '#e5efe5' },
-  { id: 'demo-user-jacob', name: 'Jacob', initial: 'J', color: '#6b578c', bg: '#ede8f5' },
-];
-
 export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   assessmentId,
   assessment: selectedAssessment,
@@ -79,8 +65,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const initializedCodeFor = useRef<string | null>(null);
-  const demoAssessment = DEMO_ASSESSMENTS.find((a) => a.id === assessmentId);
-  const initialAssessment = selectedAssessment ?? demoAssessment ?? {
+  const initialAssessment = selectedAssessment ?? {
     id: assessmentId,
     ownerId: user?.uid || 'guest',
     name: 'New assessment',
@@ -127,17 +112,12 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Tasks with Assignees
-  const [tasks, setTasks] = useState<Task[]>(demoAssessment ? DEMO_CS_PROPOSAL_TASKS : []);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [blankTaskText, setBlankTaskText] = useState('');
   const [activeAssigneePickerTaskId, setActiveAssigneePickerTaskId] = useState<string | null>(null);
 
   // Resources
-  const [resources, setResources] = useState<ResourceItem[]>(demoAssessment ? DEMO_CS_PROPOSAL_RESOURCES.map((r) => ({
-      ...r,
-      type: 'url' as const,
-      dateAdded: 'Sep 10',
-    })) : []
-  );
+  const [resources, setResources] = useState<ResourceItem[]>([]);
   const [showAddResourceModal, setShowAddResourceModal] = useState(false);
   const [newResourceTitle, setNewResourceTitle] = useState('');
   const [newResourceUrl, setNewResourceUrl] = useState('');
@@ -147,7 +127,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [selectedResourceFile, setSelectedResourceFile] = useState<File | null>(null);
 
   // Journal Notes
-  const [notes, setNotes] = useState<JournalEntry[]>(demoAssessment ? DEMO_CS_PROPOSAL_NOTES : []);
+  const [notes, setNotes] = useState<JournalEntry[]>([]);
   const [blankNoteText, setBlankNoteText] = useState('');
   const [activeAuthorId, setActiveAuthorId] = useState('demo-user-pico');
   const [memberIds, setMemberIds] = useState<string[]>([]);
@@ -166,7 +146,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         ];
         return { id, name, initial: name.charAt(0).toUpperCase(), ...colors[index % colors.length] };
       })
-    : COLLAB_MEMBERS;
+    : [];
 
   const persistNewCode = async (previousCode?: string | null) => {
     if (!user) return;

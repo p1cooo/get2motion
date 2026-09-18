@@ -211,3 +211,14 @@ When V1 pass is complete, report:
 7. Recommended next steps
 
 Never claim an item is complete unless verified.
+
+## Final production-readiness pass — 18 Sep 2026
+
+- [x] Remove production Demo Preview controls, wording, and auth fallback.
+- [x] Require authentication before rendering dashboard data.
+- [x] Start authenticated Home, Study, Work, and Projects views empty unless owner-scoped Firestore records exist.
+- [x] Persist newly created Work calendar records under the current owner UID.
+- [x] Keep the YouTube player embedded in Home and use one fixed mini-player outside Home.
+- [x] Add post-signup confirmation for Firebase's automatic sign-in flow.
+- [x] Remove the top-right settings gear while retaining sign-out.
+- [ ] Complete authenticated Firebase browser and Vercel deployment verification with production access.

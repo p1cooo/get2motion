@@ -12,7 +12,6 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { Assessment } from '../../lib/types';
-import { DEMO_ASSESSMENTS } from '../../lib/demo-data';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
 import { AllTestsView } from './AllTestsView';
@@ -31,7 +30,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
 }) => {
   const handleOpenJoin = onOpenJoinCollab || onOpenJoinModal || (() => {});
   const { user } = useAuth();
-  const [assessments, setAssessments] = useState<Assessment[]>(DEMO_ASSESSMENTS);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newType, setNewType] = useState<Assessment['type']>('assignment');
   const [newName, setNewName] = useState('');
@@ -41,7 +40,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
 
   useEffect(() => {
     if (!user) {
-      setAssessments(DEMO_ASSESSMENTS);
+      setAssessments([]);
       return;
     }
     return onSnapshot(

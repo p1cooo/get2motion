@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Sparkles, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { X, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 
 interface AuthModalProps {
@@ -57,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (code.includes('auth/popup-closed-by-user')) {
       return 'Sign-in was cancelled. Click again when ready.';
     }
-    return 'Unable to sign in right now. You can continue in Demo Preview Mode.';
+    return 'Unable to sign in right now. Please try again.';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,7 +82,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       } else {
         await signUpWithEmail(displayName.trim(), email, password);
       }
-      onClose();
+      if (mode === 'signin') onClose();
     } catch (err) {
       setErrorMessage(mapFriendlyError(err));
     } finally {
@@ -290,12 +290,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           )}
         </div>
 
-        {/* Demo preview note */}
-        <div className="mt-4 pt-3 border-t border-[#ede2d2] text-center">
-          <p className="text-[11px] text-[#9d8a7c] italic">
-            You can also continue using the dashboard directly in Demo Mode without signing in.
-          </p>
-        </div>
       </div>
     </div>
   );

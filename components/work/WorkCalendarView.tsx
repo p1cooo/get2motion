@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,7 +18,9 @@ import {
   CheckCircle2,
   FileText,
 } from 'lucide-react';
-import { DEMO_SEPTEMBER_ENTRIES, CalendarEntryDemo } from '../../lib/demo-data';
+import { CalendarEntryDemo } from '../../lib/demo-data';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../lib/auth-context';
 
 interface WorkCalendarViewProps {
   onSelectWorkItem?: (workItemId: string, dateStr: string) => void;
@@ -109,6 +112,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   onSelectWorkItem,
   onSelectOccurrence,
 }) => {
+  const { user } = useAuth();
   const handleSelect = onSelectWorkItem || onSelectOccurrence || (() => {});
 
   // View mode: 'month' or 'day'
@@ -119,8 +123,19 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   const [currentMonth, setCurrentMonth] = useState(8); // 8 = September (0-indexed)
   const [filterType, setFilterType] = useState<'all' | 'class' | 'event'>('all');
 
-  // Local calendar entries state with full persistence & reactive updates
-  const [entries, setEntries] = useState<CalendarEntryDemo[]>(DEMO_SEPTEMBER_ENTRIES);
+  // Each signed-in user only receives their own persisted schedule records.
+  const [entries, setEntries] = useState<CalendarEntryDemo[]>([]);
+
+  useEffect(() => {
+    if (!user) { setEntries([]); return; }
+    return onSnapshot(
+      query(collection(db, 'workItems'), where('ownerId', '==', user.uid)),
+      (snapshot) => setEntries(snapshot.docs.map((item) => {
+        const entry = item.data() as Omit<CalendarEntryDemo, 'id' | 'workItemId'>;
+        return { ...entry, id: item.id, workItemId: item.id, dayNum: Number(entry.date?.slice(-2)) || 1 } as CalendarEntryDemo;
+      })),
+    );
+  }, [user]);
 
   // Drag & drop state
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
@@ -204,9 +219,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
     const dayParsed = parseInt(newDateStr.split('-')[2] || '15', 10);
     const combinedTime = `${newStartTime} – ${newEndTime}`;
 
-    const newEntry: CalendarEntryDemo = {
-      id: `custom-${Date.now()}`,
-      workItemId: `work-custom-${Date.now()}`,
+    const newEntry: Omit<CalendarEntryDemo, 'id' | 'workItemId'> & { ownerId: string; createdAt: string } = {
       title: newTitle.trim(),
       type: newType,
       date: newDateStr,
@@ -215,9 +228,11 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
       color: newColor,
       recurrenceRule: newRecurrence !== 'Does not repeat' ? newRecurrence : undefined,
       notes: newNotes.trim() || undefined,
+      ownerId: user?.uid || '',
+      createdAt: new Date().toISOString(),
     };
 
-    setEntries((prev) => [...prev, newEntry]);
+    if (user) void addDoc(collection(db, 'workItems'), newEntry);
     setIsAddModalOpen(false);
     setNewTitle('');
     setNewNotes('');
@@ -286,6 +301,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
           return item;
         })
       );
+      if (user) void updateDoc(doc(db, 'workItems', entry.id), { date: newDate });
     }
     setPendingRecurringDrop(null);
     setDraggedEntryId(null);
@@ -423,6 +439,8 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
               </button>
             </div>
           </div>
+
+          {entries.length === 0 && <p className="mb-5 rounded-xl border border-dashed border-[#ded2c0] bg-[#faf6ef] px-4 py-3 text-center text-xs text-[#9d8a7c]">Your calendar is clear. Add a class or event to get started.</p>}
 
           {/* Weekday Header Labels */}
           <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-[#8c7a6e] tracking-wider uppercase">
