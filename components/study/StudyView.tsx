@@ -37,6 +37,8 @@ export const StudyView: React.FC<StudyViewProps> = ({
   const [newCourseCode, setNewCourseCode] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newWeight, setNewWeight] = useState('');
+  const [isSavingAssessment, setIsSavingAssessment] = useState(false);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -68,7 +70,14 @@ export const StudyView: React.FC<StudyViewProps> = ({
 
   const openAdd = (type: Assessment['type'] = 'assignment') => {
     setNewType(type);
+    setAssessmentError(null);
     setIsAddOpen(true);
+  };
+
+  const closeAdd = () => {
+    if (isSavingAssessment) return;
+    setIsAddOpen(false);
+    setAssessmentError(null);
   };
 
   const createAssessment = async (event: React.FormEvent) => {
@@ -90,22 +99,22 @@ export const StudyView: React.FC<StudyViewProps> = ({
     };
     if (!draft.name || !draft.courseCode) return;
 
-    if (user) {
-      const reference = await addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
+    if (!user) return;
+    setIsSavingAssessment(true);
+    setAssessmentError(null);
+    try {
+      await addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
       setIsAddOpen(false);
       setNewName('');
       setNewCourseCode('');
       setNewDate('');
       setNewWeight('');
-      onSelectAssessment(reference.id, { ...draft, id: reference.id, ownerId: user.uid });
-      return;
+      // Stay in the overview: Firestore's live list shows the new assessment immediately.
+    } catch {
+      setAssessmentError('Could not create this assessment. Please check your connection and try again.');
+    } finally {
+      setIsSavingAssessment(false);
     }
-
-    const id = `guest-assessment-${Date.now()}`;
-    const assessment = { ...draft, id, ownerId: 'guest' };
-    setAssessments((current) => [assessment, ...current]);
-    setIsAddOpen(false);
-    onSelectAssessment(id, assessment);
   };
 
   // Tests & Assignments arrays
@@ -340,6 +349,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
               <h2 className="text-base font-bold text-[#43342a]">Add Assessment</h2>
               <p className="mt-1 text-xs text-[#8c7a6e]">Create a new test or assignment.</p>
             </div>
+            {assessmentError && <p className="rounded-xl border border-[#f2cbd0] bg-[#faeaec] px-3 py-2 text-xs font-medium text-[#8a4b53]">{assessmentError}</p>}
             <div className="grid grid-cols-2 gap-2">
               {(['test', 'assignment'] as const).map((type) => (
                 <button key={type} type="button" onClick={() => setNewType(type)} className={`rounded-xl border px-3 py-2 text-xs font-bold capitalize ${newType === type ? 'border-[#966746] bg-[#966746] text-white' : 'border-[#ede3d4] bg-[#faf7f2] text-[#786659]'}`}>
@@ -354,8 +364,8 @@ export const StudyView: React.FC<StudyViewProps> = ({
               <input type="number" min="0" max="100" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} placeholder="Weight %" className="w-full rounded-xl border border-[#ede3d4] bg-[#faf7f2] px-3 py-2 text-sm text-[#43342a] focus:outline-none focus:ring-1 focus:ring-[#966746]" />
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setIsAddOpen(false)} className="rounded-xl px-4 py-2 text-xs font-semibold text-[#786659] hover:bg-[#f6eee3]">Cancel</button>
-              <button type="submit" className="rounded-xl bg-[#966746] px-4 py-2 text-xs font-bold text-white hover:bg-[#7e5335]">Create Assessment</button>
+              <button type="button" onClick={closeAdd} disabled={isSavingAssessment} className="rounded-xl px-4 py-2 text-xs font-semibold text-[#786659] hover:bg-[#f6eee3] disabled:opacity-50">Cancel</button>
+              <button type="submit" disabled={isSavingAssessment} className="rounded-xl bg-[#966746] px-4 py-2 text-xs font-bold text-white hover:bg-[#7e5335] disabled:opacity-60">{isSavingAssessment ? 'Creating…' : 'Create Assessment'}</button>
             </div>
           </form>
         </div>
