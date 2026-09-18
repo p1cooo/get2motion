@@ -15,7 +15,7 @@ import { Assessment } from '../../lib/types';
 
 interface AllTestsViewProps {
   onBack: () => void;
-  onSelectAssessment: (assessmentId: string) => void;
+  onSelectAssessment: (assessmentId: string, assessment?: Assessment) => void;
   onAddNewTest?: () => void;
   assessments: Assessment[];
 }
@@ -266,7 +266,7 @@ export const AllTestsView: React.FC<AllTestsViewProps> = ({
           {filteredTests.map((item) => (
             <div
               key={item.id}
-              onClick={() => onSelectAssessment(item.id)}
+              onClick={() => onSelectAssessment(item.id, item)}
               className="group bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-5 shadow-xs hover:shadow-md hover:border-[#dfd0be] transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               <div>

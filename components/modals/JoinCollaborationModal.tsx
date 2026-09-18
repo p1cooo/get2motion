@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Users, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
-import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
 import confetti from 'canvas-confetti';
 
@@ -48,54 +46,7 @@ export const JoinCollaborationModal: React.FC<JoinCollaborationModalProps> = ({
       return;
     }
 
-    setLoading(true);
-    setErrorMsg(null);
-
-    try {
-      // 1. Direct get on /collaborationCodes/{normalizedCode} by exact document ID
-      const codeRef = doc(db, 'collaborationCodes', normalizedCode);
-      const codeSnap = await getDoc(codeRef);
-
-      if (!codeSnap.exists()) {
-        setErrorMsg('Invalid code. Please check with your group leader.');
-        setLoading(false);
-        return;
-      }
-
-      const codeData = codeSnap.data();
-      if (!codeData.enabled || !codeData.assessmentId) {
-        setErrorMsg('This collaboration code has been disabled or expired.');
-        setLoading(false);
-        return;
-      }
-
-      const assessmentId = codeData.assessmentId;
-
-      // 2. Add only the authenticated user's UID to assessment's memberIds
-      const assessmentRef = doc(db, 'assessments', assessmentId);
-      await updateDoc(assessmentRef, {
-        memberIds: arrayUnion(user.uid),
-      });
-
-      confetti({
-        particleCount: 40,
-        spread: 70,
-        origin: { y: 0.7 },
-        colors: ['#8fae92', '#df989f', '#cfa361'],
-      });
-
-      onClose();
-      onJoined(assessmentId);
-    } catch (err: any) {
-      console.error('Join error:', err);
-      setErrorMsg(
-        err?.message?.includes('permission')
-          ? 'You do not have permission to join this assessment.'
-          : 'Unable to join assessment. Please verify the code.'
-      );
-    } finally {
-      setLoading(false);
-    }
+    setErrorMsg('Secure code redemption is not available yet. Ask the assessment owner to add you.');
   };
 
   return (

@@ -82,6 +82,9 @@ Check items only after implementation and verification.
 
 ## Assessment detail
 - [x] Signed-in Assessment Detail is Firestore-backed without demo-default overwrites
+- [x] New signed-in users do not receive demo/reference data
+- [x] Firestore rules restrict assessment-linked tasks, notes, resources, and assignees to the assessment membership model
+- [x] Firestore and assessment-resource Storage rules are deployed to Motion
 - [ ] Name editable
 - [ ] Course editable
 - [ ] Status editable
@@ -110,6 +113,7 @@ Check items only after implementation and verification.
 - [ ] Collaboration access is assessment-scoped
 - [x] Add Assessment opens a creation form rather than an unrelated demo record
 - [x] Guest browser sanity check: Add Assessment and compact Join Group Assessment modal render without console errors
+- [x] New guest assessment opens its own empty detail state, not an unrelated demo assessment
 
 ## Work Month View
 - [ ] Signed-in Work create, reschedule, and refresh persistence (implemented; awaiting authenticated user verification)
@@ -216,3 +220,4 @@ Check items only after implementation and verification.
 - [ ] No duplicate visual controls
 - [ ] Production build passes
 - [ ] Vercel deployment is ready
+- [x] Vite SPA rewrite is configured for Vercel

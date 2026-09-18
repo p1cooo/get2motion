@@ -82,10 +82,14 @@ Lint, typecheck, and production build pass after this stage. Continue with remai
 - [x] Persist URL resources; upload file resources to Firebase Storage when signed in
 - [x] Persist resource rename/delete and retain internal scroll
 - [x] Generate and persist unique 5-letter collaboration codes; Copy / Regenerate retained
+- [x] Stop automatic demo/reference-data seeding for authenticated users; retain isolated guest preview data
+- [x] Restrict assessment-linked Firestore tasks, notes, resources, and assignees to assessment owner/member access
+- [x] Deploy Firestore and validated assessment-resource Storage rules to Motion
 - [ ] Authenticated browser regression: fields, tasks, assignees, resources, notes, codes, refresh/navigation, separate records
 - [ ] Replace client-side collaboration membership join with a trusted redemption endpoint before production deployment
 - [x] Replace the hardcoded Add Assessment demo route with a creation form and unique signed-in Firestore record
 - [x] Normalize Join Group Assessment's UI and input to the five-letter collaboration-code format
+- [x] Prevent new/unknown assessment IDs from rendering an unrelated demo assessment during detail initialization
 
 Run typecheck/build before moving on.
 
@@ -159,6 +163,7 @@ Run typecheck/build before moving on.
 - [x] Persist task checkbox/inline edit/delete/due date/Show on Home actions (Home rendering awaits shared-task migration)
 - [x] Store note author and timestamp; long columns retain internal scrolling
 - [x] Preserve ← Back to Projects & Ideas
+- [x] Prevent new/unknown project IDs from rendering an unrelated demo project during detail initialization
 - [ ] Browser regression for Projects main/detail and signed-in refresh/navigation
 
 Run typecheck/build before moving on.
@@ -192,6 +197,7 @@ Only after core UI/logic is stable.
 - [ ] Document remaining limitations
 - [x] Remove the normal signed-in reference-data seed control without deleting stored data
 - [ ] Identify and remove only unequivocally disposable development records after authenticated end-to-end verification
+- [x] Add Vercel SPA rewrite for direct Vite client routes
 
 ## Completion report
 When V1 pass is complete, report:

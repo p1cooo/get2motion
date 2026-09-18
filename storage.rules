@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function canAccessAssessment(assessmentId) {
+      let assessment = firestore.get(/databases/(default)/documents/assessments/$(assessmentId));
+      return signedIn() && (
+        assessment.data.ownerId == request.auth.uid ||
+        request.auth.uid in assessment.data.memberIds
+      );
+    }
+
+    match /assessments/{assessmentId}/resources/{fileName} {
+      allow read: if canAccessAssessment(assessmentId);
+      allow create: if canAccessAssessment(assessmentId) &&
+        request.resource.size < 20 * 1024 * 1024;
+      allow delete: if canAccessAssessment(assessmentId);
+    }
+  }
+}

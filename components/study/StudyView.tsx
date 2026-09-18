@@ -19,7 +19,7 @@ import { AllTestsView } from './AllTestsView';
 import { AllAssignmentsView } from './AllAssignmentsView';
 
 interface StudyViewProps {
-  onSelectAssessment: (assessmentId: string) => void;
+  onSelectAssessment: (assessmentId: string, assessment?: Assessment) => void;
   onOpenJoinModal?: () => void;
   onOpenJoinCollab?: () => void;
 }
@@ -94,13 +94,15 @@ export const StudyView: React.FC<StudyViewProps> = ({
     if (user) {
       const reference = await addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
       setIsAddOpen(false);
-      onSelectAssessment(reference.id);
+      onSelectAssessment(reference.id, { ...draft, id: reference.id, ownerId: user.uid });
       return;
     }
 
     const id = `guest-assessment-${Date.now()}`;
-    setAssessments((current) => [{ ...draft, id, ownerId: 'guest' }, ...current]);
+    const assessment = { ...draft, id, ownerId: 'guest' };
+    setAssessments((current) => [assessment, ...current]);
     setIsAddOpen(false);
+    onSelectAssessment(id, assessment);
   };
 
   // Tests & Assignments arrays
@@ -205,7 +207,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
           {visibleTests.map((item) => (
             <div
               key={item.id}
-              onClick={() => onSelectAssessment(item.id)}
+              onClick={() => onSelectAssessment(item.id, item)}
               className="group bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-5 shadow-xs hover:shadow-md hover:border-[#dfd0be] transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               <div>
@@ -278,7 +280,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
           {visibleAssignments.map((item) => (
             <div
               key={item.id}
-              onClick={() => onSelectAssessment(item.id)}
+              onClick={() => onSelectAssessment(item.id, item)}
               className="group bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-5 shadow-xs hover:shadow-md hover:border-[#dfd0be] transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               <div>

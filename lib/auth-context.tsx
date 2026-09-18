@@ -15,7 +15,6 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { UserProfile } from './types';
-import { seedInitialDemoData } from './seed';
 
 interface AuthContextType {
   user: User | null;
@@ -61,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(initialProfile);
           }
 
-          // Trigger development seed data if empty
-          await seedInitialDemoData(currentUser.uid);
         } catch (err) {
           console.error('Error fetching user profile:', err);
         }
@@ -96,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       await setDoc(doc(db, 'users', cred.user.uid), newProfile);
       setProfile(newProfile);
-      await seedInitialDemoData(cred.user.uid);
     }
   };
 
@@ -120,7 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         await setDoc(userDocRef, newProfile);
         setProfile(newProfile);
-        await seedInitialDemoData(cred.user.uid);
       }
     }
   };

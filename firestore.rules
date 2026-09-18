@@ -27,6 +27,23 @@ service cloud.firestore {
       );
     }
 
+    function isAssessmentOwner(assessmentId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/assessments/$(assessmentId)).data.ownerId == request.auth.uid;
+    }
+
+    function isAssessmentTask(task) {
+      return task.parentType == 'assessment';
+    }
+
+    function hasOnlyAssessmentMembers(assessmentId, assigneeIds) {
+      let assessment = get(/databases/$(database)/documents/assessments/$(assessmentId));
+      return assigneeIds is list &&
+        assigneeIds.toSet().difference(
+          assessment.data.memberIds.toSet().union([assessment.data.ownerId].toSet())
+        ).size() == 0;
+    }
+
     // 1. Users Collection
     match /users/{uid} {
       allow get: if isSignedIn();
@@ -37,27 +54,47 @@ service cloud.firestore {
 
     // 2. Master Tasks Collection
     match /tasks/{taskId} {
-      allow get: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
-        request.auth.uid in resource.data.assignedToUserIds
-      );
-      allow list: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
-        request.auth.uid in resource.data.assignedToUserIds
+      allow get, list: if isSignedIn() && (
+        (isAssessmentTask(resource.data) && canAccessAssessment(resource.data.parentId)) ||
+        (!isAssessmentTask(resource.data) && (
+          resource.data.ownerId == request.auth.uid ||
+          request.auth.uid in resource.data.assignedToUserIds
+        ))
       );
       allow create: if isSignedIn() &&
         request.resource.data.ownerId == request.auth.uid &&
         request.resource.data.title is string &&
         request.resource.data.title.size() > 0 &&
-        request.resource.data.title.size() <= 300;
-      allow update: if isSignedIn() && (
-        (resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == resource.data.ownerId) ||
+        request.resource.data.title.size() <= 300 &&
         (
+          !isAssessmentTask(request.resource.data) ||
+          (canAccessAssessment(request.resource.data.parentId) &&
+            hasOnlyAssessmentMembers(request.resource.data.parentId, request.resource.data.assignedToUserIds))
+        );
+      allow update: if isSignedIn() && (
+        (
+          !isAssessmentTask(resource.data) &&
+          resource.data.ownerId == request.auth.uid &&
+          request.resource.data.ownerId == resource.data.ownerId
+        ) ||
+        (
+          isAssessmentTask(resource.data) &&
+          request.resource.data.ownerId == resource.data.ownerId &&
+          request.resource.data.parentType == resource.data.parentType &&
+          request.resource.data.parentId == resource.data.parentId &&
+          canAccessAssessment(resource.data.parentId) &&
+          hasOnlyAssessmentMembers(resource.data.parentId, request.resource.data.assignedToUserIds)
+        ) ||
+        (
+          !isAssessmentTask(resource.data) &&
           request.auth.uid in resource.data.assignedToUserIds &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completed', 'completedAt'])
         )
       );
-      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && (
+        (!isAssessmentTask(resource.data) && resource.data.ownerId == request.auth.uid) ||
+        (isAssessmentTask(resource.data) && isAssessmentOwner(resource.data.parentId))
+      );
     }
 
     // 3. Academic Assessments Collection
@@ -74,17 +111,9 @@ service cloud.firestore {
         request.resource.data.ownerId == request.auth.uid &&
         request.resource.data.name is string &&
         request.resource.data.name.size() <= 200;
-      allow update: if isSignedIn() && (
-        // Standard Owner Update
-        (resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == resource.data.ownerId) ||
-        // Secure Collaboration Join (Code verified, only adds caller's UID)
-        (
-          resource.data.collaborationEnabled == true &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']) &&
-          request.resource.data.memberIds.toSet().difference(resource.data.memberIds.toSet()) == [request.auth.uid].toSet() &&
-          request.resource.data.collaborationCode == resource.data.collaborationCode
-        )
-      );
+      allow update: if isSignedIn() &&
+        resource.data.ownerId == request.auth.uid &&
+        request.resource.data.ownerId == resource.data.ownerId;
       allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
@@ -96,7 +125,7 @@ service cloud.firestore {
         request.resource.data.items is list &&
         request.resource.data.authorId == request.auth.uid;
       allow update, delete: if canAccessAssessment(resource.data.assessmentId) &&
-        (resource.data.authorId == request.auth.uid);
+        (isAssessmentOwner(resource.data.assessmentId) || resource.data.authorId == request.auth.uid);
     }
 
     // 5. Assessment Resources Collection
@@ -141,13 +170,15 @@ service cloud.firestore {
 
     // 9. Dedicated Collaboration Codes Lookup Collection
     match /collaborationCodes/{code} {
-      // Direct get by exact code is allowed if code is enabled
+      // Direct get by exact code is allowed; listing all codes is never allowed.
       allow get: if isSignedIn() && (resource == null || resource.data.enabled == true);
       // Listing or querying all codes is strictly forbidden
       allow list: if false;
-      allow create, update, delete: if isSignedIn() && (
-        resource == null ? request.resource.data.ownerId == request.auth.uid : resource.data.ownerId == request.auth.uid
-      );
+      allow create: if isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.code == code &&
+        get(/databases/$(database)/documents/assessments/$(request.resource.data.assessmentId)).data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
   }
 }

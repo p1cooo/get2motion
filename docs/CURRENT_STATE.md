@@ -100,12 +100,12 @@ Visual styling in the lower portions of several pages is already close to the de
 
 - Signed-in Assessment Detail uses Firestore listeners scoped by the selected assessment ID. Header fields, canonical assessment tasks and completion state, assignee UIDs, URL/file resources, author-labelled notes, and collaboration-code state are persisted without copying demo defaults over existing records.
 - Existing owner assessment records with an absent/legacy code receive a five-letter uppercase code on first detail open. The client checks a dedicated `collaborationCodes/{code}` document in a transaction before writing it.
-- Firestore rules now restrict assessment notes and resources to the assessment owner or member. The legacy join flow still needs a trusted server-side code-redemption step before production deployment: Firestore rules cannot prove a client looked up the code before adding itself to `memberIds`.
+- Firestore rules restrict assessment notes and resources to the assessment owner or member. Collaboration-code redemption requires a trusted server-side step before production deployment: Firestore rules cannot prove a client looked up the code before adding itself to `memberIds`.
 - Guest-mode Assessment Detail remains local demo UI by design. Browser verification confirmed the guest UI and its controls render without a new runtime error; authenticated persistence regression requires a non-production test account and has not been marked verified.
 
 ### Targeted V1 blocker audit (16 Sep 2026)
 
-1. **Collaboration security:** the current client can read a code and then update `memberIds`; Firestore rules cannot attest that lookup, so production code redemption needs a trusted backend endpoint.
+1. **Collaboration security:** production code redemption needs a trusted backend endpoint. The client-side membership mutation is disabled because Firestore rules cannot attest that a client legitimately redeemed a code.
 2. **Authenticated regression:** a disposable Firebase test account is needed to verify writes through refresh/navigation without creating or using an account through browser automation without approval.
 3. **Remaining data loss:** Work calendar/detail and Projects/detail still use component-local demo state. They are the next persistence candidates after the authenticated Assessment Detail regression and secure collaboration redemption.
 4. **Assessment UI gap:** task titles are displayed but not yet inline-editable, so the requested task inline-edit acceptance item remains open.
@@ -138,6 +138,23 @@ Visual styling in the lower portions of several pages is already close to the de
 - Work event selection passes each calendar entry's own ID/date into the detail view. The detail view no longer binds every event to the Joshua diary, and its chess-specific Current Focus block is removed.
 - The signed-in footer no longer exposes the development reference-data seeding action. No Firestore, Storage, or Auth records have been deleted: authenticated end-to-end verification is still required before any identifiable development data can be safely removed.
 - Focused guest-mode browser checks confirmed that Add Assessment opens its form rather than selecting a demo record, Join Group Assessment exposes only its bottom Cancel action and compact code input, and a non-Joshua Work event opens an event-specific detail page with the three generic journal sections. The local browser console reported no errors for these checks.
+
+### Detail selection safety (17 Sep 2026)
+
+- New assessments no longer fall back to an unrelated demo assessment while their Firestore listener initializes. Study now passes the selected record into detail, and a new guest-mode `OOD test` was browser-verified to open with its own title, course, and empty tasks/resources/journal.
+- The same unsafe unknown-ID fallback was removed from Project Detail, preventing a newly created or newly loaded project from displaying Bingo Space data.
+- `vercel.json` now supplies the required Vite SPA rewrite so direct links such as `/study/tests` resolve to the app rather than a Vercel 404.
+
+### Firebase production narrow pass (18 Sep 2026)
+
+- Signed-in account creation and sign-in no longer invoke `seedInitialDemoData`; authenticated users receive only their own minimal profile and begin with empty production collections. Guest Demo Mode remains local and isolated.
+- Assessment rules now require owner/member access for assessment-linked tasks, notes, and resources. Assessment task assignees must be assessment members, and only the assessment owner can change membership or delete shared tasks.
+- Client-side collaboration-code redemption is deliberately disabled because Firestore rules cannot safely verify code redemption. A trusted server endpoint remains required before authenticated code joining can ship.
+
+### Firebase rules deployment pass (18 Sep 2026)
+
+- The updated Firestore rules were deployed to Motion. Storage rules were also deployed for the existing `assessments/{assessmentId}/resources/{fileName}` path.
+- The active Motion client uses the `(default)` Firestore database, so Storage’s Firestore lookup uses the correct database. Storage allows only authenticated assessment owners/members to read, create (under 20 MiB), or delete resources; all other paths and updates remain denied by default.
 
 ### Work
 

@@ -24,7 +24,7 @@ import { Project } from '../../lib/types';
 import { DEMO_PROJECTS } from '../../lib/demo-data';
 
 interface ProjectsViewProps {
-  onSelectProject: (projectId: string) => void;
+  onSelectProject: (projectId: string, project?: Project) => void;
   onOpenCreateModal?: () => void;
 }
 
@@ -232,7 +232,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               key={item.id}
               draggable
               onDragStart={(e) => handleDragStart(e, item.id)}
-              onClick={() => onSelectProject(item.id)}
+              onClick={() => onSelectProject(item.id, item)}
               className="group bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-5 shadow-xs hover:shadow-md hover:border-[#dfd0be] transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               <div>
@@ -320,7 +320,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               key={item.id}
               draggable
               onDragStart={(e) => handleDragStart(e, item.id)}
-              onClick={() => onSelectProject(item.id)}
+              onClick={() => onSelectProject(item.id, item)}
               className="group bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-5 shadow-xs hover:shadow-md hover:border-[#dfd0be] transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               <div>
@@ -391,7 +391,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 key={item.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item.id)}
-                onClick={() => onSelectProject(item.id)}
+                onClick={() => onSelectProject(item.id, item)}
                 className="group bg-[#fffefb]/80 rounded-2xl border border-[#ede2d2] p-5 shadow-xs hover:border-[#dfd0be] transition-all cursor-pointer flex flex-col justify-between"
               >
                 <div>

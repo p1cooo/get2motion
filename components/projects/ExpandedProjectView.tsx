@@ -22,9 +22,11 @@ import {
   DEMO_BINGO_TASKS,
   DEMO_BINGO_NOTES,
 } from '../../lib/demo-data';
+import { Project } from '../../lib/types';
 
 interface ExpandedProjectViewProps {
   projectId: string;
+  project?: Project;
   onBack: () => void;
 }
 
@@ -32,10 +34,22 @@ type ProjectStatus = 'Idea' | 'Active' | 'Completed';
 
 export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   projectId,
+  project: selectedProject,
   onBack,
 }) => {
-  const initialProject =
-    DEMO_PROJECTS.find((p) => p.id === projectId) || DEMO_PROJECTS[0];
+  const demoProject = DEMO_PROJECTS.find((p) => p.id === projectId);
+  const initialProject = selectedProject ?? demoProject ?? {
+    id: projectId,
+    ownerId: 'guest',
+    name: 'New project',
+    description: '',
+    status: 'Active' as const,
+    section: 'active' as const,
+    icon: 'Target',
+    targetDate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
   // Editable Header State
   const [projectName, setProjectName] = useState(initialProject.name);
@@ -53,7 +67,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [isEditingDate, setIsEditingDate] = useState(false);
 
   // Tasks with inline editing + blank-row quick entry
-  const [tasks, setTasks] = useState(DEMO_BINGO_TASKS);
+  const [tasks, setTasks] = useState(demoProject ? DEMO_BINGO_TASKS : []);
   const [blankTaskText, setBlankTaskText] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
@@ -62,16 +76,16 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [ideas, setIdeas] = useState<string[]>(
     initialProject.ideas && initialProject.ideas.length > 0
       ? initialProject.ideas
-      : [
+      : demoProject ? [
           'Add audio sound effects when checking off bingo squares',
           'Export board as shareable high-res PNG or PDF printable',
           'Leaderboard for daily community bingo runs',
-        ]
+        ] : []
   );
   const [blankIdeaText, setBlankIdeaText] = useState('');
 
   // Notes with fixed-height scrolling container + blank-row quick entry
-  const [notes, setNotes] = useState<string[]>(DEMO_BINGO_NOTES);
+  const [notes, setNotes] = useState<string[]>(demoProject ? DEMO_BINGO_NOTES : []);
   const [blankNoteText, setBlankNoteText] = useState('');
 
   // Task Handlers

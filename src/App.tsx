@@ -14,6 +14,7 @@ import { JoinCollaborationModal } from '../components/modals/JoinCollaborationMo
 import { SettingsModal } from '../components/modals/SettingsModal';
 import { AuthModal } from '../components/auth/AuthModal';
 import { CozyMediaProvider } from '../components/home/cozy-media-context';
+import { Assessment, Project } from '../lib/types';
 
 function getInitialTab(): ActiveTab {
   return window.location.pathname.startsWith('/study') ? 'study' : 'home';
@@ -26,9 +27,11 @@ function DashboardContent() {
 
   // Sub-view routing
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [selectedWorkItemId, setSelectedWorkItemId] = useState<string | null>(null);
   const [selectedWorkDateStr, setSelectedWorkDateStr] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Modals
   const [showCollabModal, setShowCollabModal] = useState(false);
@@ -40,9 +43,11 @@ function DashboardContent() {
     window.history.pushState({}, '', tab === 'home' ? '/' : `/${tab}`);
     setActiveTab(tab);
     setSelectedAssessmentId(null);
+    setSelectedAssessment(null);
     setSelectedWorkItemId(null);
     setSelectedWorkDateStr(null);
     setSelectedProjectId(null);
+    setSelectedProject(null);
   };
 
   return (
@@ -72,11 +77,18 @@ function DashboardContent() {
           (selectedAssessmentId ? (
             <ExpandedAssessmentView
               assessmentId={selectedAssessmentId}
-              onBack={() => setSelectedAssessmentId(null)}
+              assessment={selectedAssessment || undefined}
+              onBack={() => {
+                setSelectedAssessmentId(null);
+                setSelectedAssessment(null);
+              }}
             />
           ) : (
             <StudyView
-              onSelectAssessment={(id) => setSelectedAssessmentId(id)}
+              onSelectAssessment={(id, assessment) => {
+                setSelectedAssessmentId(id);
+                setSelectedAssessment(assessment || null);
+              }}
               onOpenJoinCollab={() => setShowCollabModal(true)}
             />
           ))}
@@ -104,10 +116,17 @@ function DashboardContent() {
           (selectedProjectId ? (
             <ExpandedProjectView
               projectId={selectedProjectId}
-              onBack={() => setSelectedProjectId(null)}
+              project={selectedProject || undefined}
+              onBack={() => {
+                setSelectedProjectId(null);
+                setSelectedProject(null);
+              }}
             />
           ) : (
-            <ProjectsView onSelectProject={(id) => setSelectedProjectId(id)} />
+            <ProjectsView onSelectProject={(id, project) => {
+              setSelectedProjectId(id);
+              setSelectedProject(project || null);
+            }} />
           ))}
       </div>
 

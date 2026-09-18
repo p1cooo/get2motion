@@ -44,6 +44,7 @@ import { Assessment, AssessmentResource, Task } from '../../lib/types';
 
 interface ExpandedAssessmentViewProps {
   assessmentId: string;
+  assessment?: Assessment;
   onBack: () => void;
 }
 
@@ -73,13 +74,28 @@ const COLLAB_MEMBERS = [
 
 export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   assessmentId,
+  assessment: selectedAssessment,
   onBack,
 }) => {
   const { user, profile } = useAuth();
   const initializedCodeFor = useRef<string | null>(null);
-  // Find assessment or fallback to CS Project Proposal
-  const initialAssessment =
-    DEMO_ASSESSMENTS.find((a) => a.id === assessmentId) || DEMO_ASSESSMENTS[6];
+  const demoAssessment = DEMO_ASSESSMENTS.find((a) => a.id === assessmentId);
+  const initialAssessment = selectedAssessment ?? demoAssessment ?? {
+    id: assessmentId,
+    ownerId: user?.uid || 'guest',
+    name: 'New assessment',
+    courseCode: '',
+    type: 'test' as const,
+    week: 1,
+    date: '',
+    weight: 0,
+    status: 'Upcoming' as const,
+    pinned: false,
+    collaborationEnabled: false,
+    collaborationCode: null,
+    memberIds: [],
+    createdAt: new Date().toISOString(),
+  };
 
   // Editable Header State
   const [assessmentName, setAssessmentName] = useState(initialAssessment.name);
@@ -111,17 +127,16 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Tasks with Assignees
-  const [tasks, setTasks] = useState(DEMO_CS_PROPOSAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>(demoAssessment ? DEMO_CS_PROPOSAL_TASKS : []);
   const [blankTaskText, setBlankTaskText] = useState('');
   const [activeAssigneePickerTaskId, setActiveAssigneePickerTaskId] = useState<string | null>(null);
 
   // Resources
-  const [resources, setResources] = useState<ResourceItem[]>(
-    DEMO_CS_PROPOSAL_RESOURCES.map((r) => ({
+  const [resources, setResources] = useState<ResourceItem[]>(demoAssessment ? DEMO_CS_PROPOSAL_RESOURCES.map((r) => ({
       ...r,
       type: 'url' as const,
       dateAdded: 'Sep 10',
-    }))
+    })) : []
   );
   const [showAddResourceModal, setShowAddResourceModal] = useState(false);
   const [newResourceTitle, setNewResourceTitle] = useState('');
@@ -132,7 +147,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [selectedResourceFile, setSelectedResourceFile] = useState<File | null>(null);
 
   // Journal Notes
-  const [notes, setNotes] = useState<JournalEntry[]>(DEMO_CS_PROPOSAL_NOTES);
+  const [notes, setNotes] = useState<JournalEntry[]>(demoAssessment ? DEMO_CS_PROPOSAL_NOTES : []);
   const [blankNoteText, setBlankNoteText] = useState('');
   const [activeAuthorId, setActiveAuthorId] = useState('demo-user-pico');
   const [memberIds, setMemberIds] = useState<string[]>([]);
