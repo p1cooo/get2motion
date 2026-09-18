@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import fallbackConfig from '../firebase-applet-config.json';
 
@@ -17,7 +17,15 @@ const firebaseConfig = {
 const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || fallbackConfig.firestoreDatabaseId;
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(app, firestoreDatabaseId);
+// Keep pending writes and owner-scoped snapshots across refreshes so a transient
+// connection cannot replace the dashboard with an empty in-memory cache.
+export const db = (() => {
+  try {
+    return initializeFirestore(app, { localCache: persistentLocalCache() }, firestoreDatabaseId);
+  } catch {
+    return getFirestore(app, firestoreDatabaseId);
+  }
+})();
 export const auth = getAuth(app);
 export const getAppStorage = () => getStorage(app, firebaseConfig.storageBucket);
 

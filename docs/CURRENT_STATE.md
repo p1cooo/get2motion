@@ -241,3 +241,10 @@ Do not use temporary generated-image URLs.
 - The Work calendar writes newly created entries to the owner-scoped `workItems` collection and its detail view loads the selected owner-scoped record.
 - The Home YouTube frame is portalled into its Cozy Media card on Home. On other sections the same mounted frame becomes the fixed mini-player, preserving its playback session.
 - Remaining limitation: authenticated Firebase and Vercel deployment verification needs valid production credentials/access; no production data was deleted during this pass.
+
+## Persistence and interaction regression pass — 18 Sep 2026
+
+- Firestore now uses a persistent local cache, and logout waits briefly for pending writes before clearing credentials.
+- Study task titles can be edited without replacing their completion or assignee fields.
+- Work month/day rendering uses exact dates and start times, and Work detail listens to the selected record rather than waiting for a server-only read.
+- The media player stops and removes its detached floating element on logout; non-Home playback can now be hidden and restored.

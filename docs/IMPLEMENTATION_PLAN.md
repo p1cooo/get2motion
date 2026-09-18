@@ -226,3 +226,4 @@ Never claim an item is complete unless verified.
 - [x] Improve empty-task deletion, manual banner positioning, and create-flow feedback for Study and Work.
 - [x] Keep newly created Study assessments in the overview and provide explicit saving/error states.
 - [x] Prevent Firestore acknowledgement delays from freezing creation modals or blanking refreshed routes.
+- [x] Use persistent Firestore cache, exact Work entry matching, and live detail snapshots for persistence regression fixes.

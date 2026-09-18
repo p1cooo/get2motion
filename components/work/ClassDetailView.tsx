@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import {
   ArrowLeft,
   Calendar,
@@ -43,7 +43,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
   const [entry, setEntry] = useState<CalendarEntryDemo | null>(null);
   useEffect(() => {
     if (!user) { setEntry(null); return; }
-    void getDoc(doc(db, 'workItems', workItemId)).then((snapshot) => {
+    return onSnapshot(doc(db, 'workItems', workItemId), (snapshot) => {
       if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) { setEntry(null); return; }
       const data = snapshot.data() as Omit<CalendarEntryDemo, 'id' | 'workItemId'>;
       setEntry({ ...data, id: snapshot.id, workItemId: snapshot.id, dayNum: Number(data.date?.slice(-2)) || 1 });
@@ -77,6 +77,15 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
 
   const [todoPrep, setTodoPrep] = useState(diary.todoPrep);
   const [blankPrep, setBlankPrep] = useState('');
+
+  useEffect(() => {
+    if (!entry) return;
+    const [start = '12:00 PM', end = '1:00 PM'] = entry.time.split('–').map((value) => value.trim());
+    setSessionDate(entry.date);
+    setStartTime(start);
+    setEndTime(end);
+    setRecurrence((entry.recurrenceRule as RecurrenceType) || 'Does not repeat');
+  }, [entry]);
 
   const handleTogglePrep = (id: string) => {
     setTodoPrep((prev) =>

@@ -200,7 +200,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
 
   // Open modal with prefilled slot values
   const openCreateModalForSlot = (day: number, startTime: string) => {
-    const formattedDate = `2026-09-${String(day).padStart(2, '0')}`;
+    const formattedDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     setNewDateStr(formattedDate);
     setNewStartTime(startTime);
     setNewEndTime(getDefaultEndTime(startTime));
@@ -275,7 +275,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   };
 
   const executeReschedule = (entry: CalendarEntryDemo, targetDay: number, allFuture: boolean) => {
-    const newDate = `2026-09-${String(targetDay).padStart(2, '0')}`;
+    const newDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
 
     if (allFuture) {
       // Shift all future occurrences by delta
@@ -287,7 +287,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
             return {
               ...item,
               dayNum: nextDay,
-              date: `2026-09-${String(nextDay).padStart(2, '0')}`,
+              date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`,
             };
           }
           return item;
@@ -322,7 +322,8 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   };
 
   // Day View Entries
-  const selectedDayEntries = entries.filter((e) => e.dayNum === selectedDay);
+  const selectedDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+  const selectedDayEntries = entries.filter((entry) => entry.date === selectedDate);
 
   // Hourly slots for Outlook-style Day View (8 AM to 8 PM)
   const hours = [
@@ -478,7 +479,8 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
 
               const isToday = dayNum === 15;
               const isSelected = selectedDay === dayNum;
-              const dayEntries = filteredEntries.filter((e) => e.dayNum === dayNum);
+              const date = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+              const dayEntries = filteredEntries.filter((entry) => entry.date === date);
               const visibleEntries = dayEntries.slice(0, 3);
               const overflowCount = dayEntries.length - 3;
 
@@ -653,14 +655,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
             <div className="flex flex-col divide-y divide-[#f2e6d2]">
               {hours.map((hour) => {
                 // Match entries for this hour
-                const hourEntries = selectedDayEntries.filter((e) => {
-                  const hourPrefix = hour.split(':')[0];
-                  const isPm = hour.includes('PM');
-                  return (
-                    e.time.includes(hourPrefix) &&
-                    (isPm ? e.time.includes('PM') : e.time.includes('AM'))
-                  );
-                });
+                const hourEntries = selectedDayEntries.filter((entry) => entry.time.split('–')[0]?.trim() === hour);
 
                 return (
                   <div

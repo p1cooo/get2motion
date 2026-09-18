@@ -114,6 +114,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   // Tasks with Assignees
   const [tasks, setTasks] = useState<Task[]>([]);
   const [blankTaskText, setBlankTaskText] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [activeAssigneePickerTaskId, setActiveAssigneePickerTaskId] = useState<string | null>(null);
 
   // Resources
@@ -235,6 +237,18 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       completed: !task.completed,
       completedAt: task.completed ? null : new Date().toISOString(),
     });
+  };
+
+  const saveTaskTitle = (taskId: string) => {
+    const title = editingTaskTitle.trim();
+    if (!title) {
+      setTasks((current) => current.filter((task) => task.id !== taskId));
+      if (user) void deleteDoc(doc(db, 'tasks', taskId));
+    } else {
+      setTasks((current) => current.map((task) => task.id === taskId ? { ...task, title } : task));
+      if (user) void updateDoc(doc(db, 'tasks', taskId), { title });
+    }
+    setEditingTaskId(null);
   };
 
   // Update Task Assignees
@@ -692,13 +706,22 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                       </button>
 
                       <div className="min-w-0 flex-1">
-                        <span
-                          className={`text-sm font-medium leading-snug break-words ${
+                        {editingTaskId === task.id ? <input
+                          autoFocus
+                          value={editingTaskTitle}
+                          onChange={(event) => setEditingTaskTitle(event.target.value)}
+                          onBlur={() => saveTaskTitle(task.id)}
+                          onKeyDown={(event) => { if (event.key === 'Enter') saveTaskTitle(task.id); if (event.key === 'Escape') setEditingTaskId(null); }}
+                          className="w-full rounded-md border border-[#966746] bg-white px-2 py-0.5 text-sm focus:outline-none"
+                        /> : <span
+                          onClick={() => { setEditingTaskId(task.id); setEditingTaskTitle(task.title); }}
+                          title="Click to edit task"
+                          className={`cursor-text text-sm font-medium leading-snug break-words ${
                             task.completed ? 'line-through text-[#a9998d]' : 'text-[#483a30]'
                           }`}
                         >
                           {task.title}
-                        </span>
+                        </span>}
                       </div>
                     </div>
 

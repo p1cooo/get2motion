@@ -12,7 +12,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, waitForPendingWrites } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { UserProfile } from './types';
 
@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
+    const loadingFallback = window.setTimeout(() => setLoading(false), 1500);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       // Never hold the whole application behind a networked profile read.
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => unsubscribe();
+    return () => { window.clearTimeout(loadingFallback); unsubscribe(); };
   }, []);
 
   const signInWithEmail = async (email: string, pass: string) => {
@@ -132,6 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOutUser = async () => {
+    // Let confirmed local writes reach Firestore before credentials are cleared.
+    await Promise.race([waitForPendingWrites(db), new Promise<void>((resolve) => window.setTimeout(resolve, 5000))]);
     await signOut(auth);
   };
 

@@ -17,7 +17,10 @@ import { CozyMediaProvider } from '../components/home/cozy-media-context';
 import { Assessment, Project } from '../lib/types';
 
 function getInitialTab(): ActiveTab {
-  return window.location.pathname.startsWith('/study') ? 'study' : 'home';
+  if (window.location.pathname.startsWith('/study')) return 'study';
+  if (window.location.pathname.startsWith('/work')) return 'work';
+  if (window.location.pathname.startsWith('/projects')) return 'projects';
+  return 'home';
 }
 
 function DashboardContent() {

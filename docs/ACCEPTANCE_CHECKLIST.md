@@ -231,3 +231,9 @@ Check items only after implementation and verification.
 - [x] Signup enters the authenticated app with a clear success confirmation.
 - [x] Settings gear beside the user name is removed; sign-out remains available.
 - [ ] Authenticated Firebase browser, refresh, and Vercel deployment verification (requires production access).
+
+## Persistence regression pass — 18 Sep 2026
+- [x] Study assessment task titles support inline edit and persist through the shared task record.
+- [x] Work day timeline matches entries by their exact persisted start time.
+- [x] Work detail subscribes to the selected owner-scoped item and displays its persisted title.
+- [x] Floating media can be hidden/restored and is cleaned up on logout.
