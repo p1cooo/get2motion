@@ -225,3 +225,4 @@ Never claim an item is complete unless verified.
 - [x] Remove the static Study course cards and rename the Work schedule heading to Work & Teaching Schedule.
 - [x] Improve empty-task deletion, manual banner positioning, and create-flow feedback for Study and Work.
 - [x] Keep newly created Study assessments in the overview and provide explicit saving/error states.
+- [x] Prevent Firestore acknowledgement delays from freezing creation modals or blanking refreshed routes.

@@ -214,7 +214,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   };
 
   // Handle Add Item Submit
-  const handleCreateEntry = async (e: React.FormEvent) => {
+  const handleCreateEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
@@ -236,10 +236,11 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
 
     if (!user) return;
     try {
-      await addDoc(collection(db, 'workItems'), newEntry);
+      const write = addDoc(collection(db, 'workItems'), newEntry);
       setIsAddModalOpen(false);
       setNewTitle('');
       setNewNotes('');
+      void write.catch(() => console.error('Work item write was not accepted by Firestore.'));
     } catch {
       setCreateError('Could not add this item. Please check your connection and try again.');
     }

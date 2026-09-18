@@ -39,10 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      // Never hold the whole application behind a networked profile read.
+      setLoading(false);
       if (currentUser) {
-        try {
+        void (async () => {
+          try {
           const userDocRef = doc(db, 'users', currentUser.uid);
           const snap = await getDoc(userDocRef);
           if (snap.exists()) {
@@ -63,13 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(initialProfile);
           }
 
-        } catch (err) {
-          console.error('Error fetching user profile:', err);
-        }
+          } catch (err) {
+            console.error('Error fetching user profile:', err);
+          }
+        })();
       } else {
         setProfile(null);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

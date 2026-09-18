@@ -37,7 +37,6 @@ export const StudyView: React.FC<StudyViewProps> = ({
   const [newCourseCode, setNewCourseCode] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newWeight, setNewWeight] = useState('');
-  const [isSavingAssessment, setIsSavingAssessment] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,12 +74,11 @@ export const StudyView: React.FC<StudyViewProps> = ({
   };
 
   const closeAdd = () => {
-    if (isSavingAssessment) return;
     setIsAddOpen(false);
     setAssessmentError(null);
   };
 
-  const createAssessment = async (event: React.FormEvent) => {
+  const createAssessment = (event: React.FormEvent) => {
     event.preventDefault();
     const date = newDate || new Date().toISOString().slice(0, 10);
     const draft = {
@@ -100,20 +98,19 @@ export const StudyView: React.FC<StudyViewProps> = ({
     if (!draft.name || !draft.courseCode) return;
 
     if (!user) return;
-    setIsSavingAssessment(true);
     setAssessmentError(null);
     try {
-      await addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
+      const write = addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
+      // Firestore may wait indefinitely for a server acknowledgement while still applying the local write.
+      // Close immediately; the live listener will render the new assessment when available.
       setIsAddOpen(false);
       setNewName('');
       setNewCourseCode('');
       setNewDate('');
       setNewWeight('');
-      // Stay in the overview: Firestore's live list shows the new assessment immediately.
+      void write.catch(() => console.error('Assessment write was not accepted by Firestore.'));
     } catch {
       setAssessmentError('Could not create this assessment. Please check your connection and try again.');
-    } finally {
-      setIsSavingAssessment(false);
     }
   };
 
@@ -364,8 +361,8 @@ export const StudyView: React.FC<StudyViewProps> = ({
               <input type="number" min="0" max="100" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} placeholder="Weight %" className="w-full rounded-xl border border-[#ede3d4] bg-[#faf7f2] px-3 py-2 text-sm text-[#43342a] focus:outline-none focus:ring-1 focus:ring-[#966746]" />
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={closeAdd} disabled={isSavingAssessment} className="rounded-xl px-4 py-2 text-xs font-semibold text-[#786659] hover:bg-[#f6eee3] disabled:opacity-50">Cancel</button>
-              <button type="submit" disabled={isSavingAssessment} className="rounded-xl bg-[#966746] px-4 py-2 text-xs font-bold text-white hover:bg-[#7e5335] disabled:opacity-60">{isSavingAssessment ? 'Creating…' : 'Create Assessment'}</button>
+              <button type="button" onClick={closeAdd} className="rounded-xl px-4 py-2 text-xs font-semibold text-[#786659] hover:bg-[#f6eee3]">Cancel</button>
+              <button type="submit" className="rounded-xl bg-[#966746] px-4 py-2 text-xs font-bold text-white hover:bg-[#7e5335]">Create Assessment</button>
             </div>
           </form>
         </div>
