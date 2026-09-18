@@ -22,20 +22,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const mapFriendlyError = (errStr: string): string => {
-    if (errStr.includes('auth/email-already-in-use')) {
+  const mapFriendlyError = (error: unknown): string => {
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      ? String(error.code)
+      : String(error);
+
+    if (code.includes('auth/email-already-in-use')) {
       return 'An account with this email already exists. Try signing in instead.';
     }
-    if (errStr.includes('auth/wrong-password') || errStr.includes('auth/invalid-credential')) {
+    if (code.includes('auth/invalid-email')) {
+      return 'Enter a valid email address.';
+    }
+    if (code.includes('auth/wrong-password') || code.includes('auth/invalid-credential')) {
       return 'Incorrect email or password. Please check your details and try again.';
     }
-    if (errStr.includes('auth/user-not-found')) {
+    if (code.includes('auth/user-not-found')) {
       return 'No account found with this email. You can sign up in seconds!';
     }
-    if (errStr.includes('auth/weak-password')) {
+    if (code.includes('auth/weak-password')) {
       return 'Please choose a password with at least 6 characters.';
     }
-    if (errStr.includes('auth/popup-closed-by-user')) {
+    if (code.includes('auth/operation-not-allowed')) {
+      return 'Email and password sign-in is not enabled for this Firebase project.';
+    }
+    if (code.includes('auth/invalid-api-key')) {
+      return 'This deployment has an invalid Firebase API key. Please contact support.';
+    }
+    if (code.includes('auth/unauthorized-domain')) {
+      return 'This site is not authorized for Google sign-in yet.';
+    }
+    if (code.includes('auth/network-request-failed')) {
+      return 'Unable to reach Firebase. Check your connection and try again.';
+    }
+    if (code.includes('auth/popup-closed-by-user')) {
       return 'Sign-in was cancelled. Click again when ready.';
     }
     return 'Unable to sign in right now. You can continue in Demo Preview Mode.';
@@ -61,11 +80,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       if (mode === 'signin') {
         await signInWithEmail(email, password);
       } else {
-        await signUpWithEmail(email, password, displayName.trim());
+        await signUpWithEmail(displayName.trim(), email, password);
       }
       onClose();
-    } catch (err: any) {
-      setErrorMessage(mapFriendlyError(err?.message || ''));
+    } catch (err) {
+      setErrorMessage(mapFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -77,8 +96,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
       await signInWithGoogle();
       onClose();
-    } catch (err: any) {
-      setErrorMessage(mapFriendlyError(err?.message || ''));
+    } catch (err) {
+      setErrorMessage(mapFriendlyError(err));
     } finally {
       setLoading(false);
     }
