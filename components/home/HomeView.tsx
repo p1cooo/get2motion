@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   Flag,
   Plus,
@@ -139,7 +139,10 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         )
       );
     }
-    if (user && editingTaskId && editingTaskTitle.trim()) {
+    if (editingTaskId && !editingTaskTitle.trim()) {
+      setTasks((prev) => prev.filter((task) => task.id !== editingTaskId));
+      if (user) void deleteDoc(doc(db, 'tasks', editingTaskId));
+    } else if (user && editingTaskId) {
       void updateDoc(doc(db, 'tasks', editingTaskId), { title: editingTaskTitle.trim() });
     }
     setEditingTaskId(null);

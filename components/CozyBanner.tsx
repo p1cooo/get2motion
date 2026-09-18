@@ -161,7 +161,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
             alt="Motion header banner"
             onError={handleImgError}
             className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0 transition-all duration-300"
-            style={{ objectPosition: bannerPosition }}
+            style={{ objectPosition: `center ${bannerPosition}%` }}
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-b from-[#b6d5e1] via-[#f5e1d3] to-[#faeee3] pointer-events-none z-0">
@@ -383,29 +383,23 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
                       <Sliders className="w-3.5 h-3.5 text-[#8fae92]" />
                       <span>Adjust Alignment</span>
                     </div>
-                    <span className="text-[10px] font-bold text-[#8c7a6e] capitalize">
-                      {bannerPosition}
+                    <span className="text-[10px] font-bold text-[#8c7a6e]">
+                      {bannerPosition}%
                     </span>
                   </button>
 
                   {showPositionSubmenu && (
-                    <div className="flex items-center gap-1 bg-[#f7f0e4] p-1 rounded-xl mx-1 my-0.5 justify-around text-[10px] font-bold">
-                      {(['top', 'center', 'bottom'] as const).map((pos) => (
-                        <button
-                          key={pos}
-                          onClick={() => {
-                            setBannerPosition(pos);
-                            setShowBannerMenu(false);
-                          }}
-                          className={`px-2 py-1 rounded-lg capitalize cursor-pointer transition-colors ${
-                            bannerPosition === pos
-                              ? 'bg-[#966746] text-white shadow-2xs'
-                              : 'text-[#786659] hover:text-[#43342a]'
-                          }`}
-                        >
-                          {pos}
-                        </button>
-                      ))}
+                    <div className="mx-1 my-1.5 rounded-xl bg-[#f7f0e4] px-3 py-2.5 text-[11px] text-[#786659]">
+                      <div className="mb-1.5 flex justify-between"><span>Top</span><span>Bottom</span></div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={bannerPosition}
+                        onChange={(event) => setBannerPosition(Number(event.target.value))}
+                        className="w-full accent-[#966746] cursor-pointer"
+                        aria-label="Banner vertical position"
+                      />
                     </div>
                   )}
 

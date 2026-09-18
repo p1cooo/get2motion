@@ -155,6 +155,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   const [newRecurrence, setNewRecurrence] = useState<RecurrenceOption>('Every week');
   const [newColor, setNewColor] = useState<EventColor>('sage');
   const [newNotes, setNewNotes] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -205,6 +206,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
     setNewEndTime(getDefaultEndTime(startTime));
     setNewTitle('');
     setNewNotes('');
+    setCreateError(null);
     setNewType('class');
     setNewRecurrence('Every week');
     setNewColor('sage');
@@ -212,7 +214,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   };
 
   // Handle Add Item Submit
-  const handleCreateEntry = (e: React.FormEvent) => {
+  const handleCreateEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
@@ -226,16 +228,21 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
       dayNum: dayParsed,
       time: combinedTime,
       color: newColor,
-      recurrenceRule: newRecurrence !== 'Does not repeat' ? newRecurrence : undefined,
-      notes: newNotes.trim() || undefined,
       ownerId: user?.uid || '',
       createdAt: new Date().toISOString(),
+      ...(newRecurrence !== 'Does not repeat' ? { recurrenceRule: newRecurrence } : {}),
+      ...(newNotes.trim() ? { notes: newNotes.trim() } : {}),
     };
 
-    if (user) void addDoc(collection(db, 'workItems'), newEntry);
-    setIsAddModalOpen(false);
-    setNewTitle('');
-    setNewNotes('');
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'workItems'), newEntry);
+      setIsAddModalOpen(false);
+      setNewTitle('');
+      setNewNotes('');
+    } catch {
+      setCreateError('Could not add this item. Please check your connection and try again.');
+    }
   };
 
   // Drag and drop handlers
@@ -329,7 +336,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#43342a] tracking-tight">
-            Work & Coaching Schedule
+            Work and Teaching Schedule
           </h1>
           <p className="text-xs sm:text-sm text-[#8c7a6e]">
             Manage classes, events, session notes, and recurring routines.
@@ -803,6 +810,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
             </div>
 
             <form onSubmit={handleCreateEntry} className="flex flex-col gap-3.5">
+              {createError && <p className="rounded-xl border border-[#f2cbd0] bg-[#faeaec] px-3 py-2 text-xs font-medium text-[#8a4b53]">{createError}</p>}
               {/* Title */}
               <div>
                 <label className="text-xs font-bold text-[#786659] block mb-1">

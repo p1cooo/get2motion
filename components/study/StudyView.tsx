@@ -93,6 +93,10 @@ export const StudyView: React.FC<StudyViewProps> = ({
     if (user) {
       const reference = await addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
       setIsAddOpen(false);
+      setNewName('');
+      setNewCourseCode('');
+      setNewDate('');
+      setNewWeight('');
       onSelectAssessment(reference.id, { ...draft, id: reference.id, ownerId: user.uid });
       return;
     }
@@ -324,42 +328,6 @@ export const StudyView: React.FC<StudyViewProps> = ({
                   {item.status}
                 </span>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* =========================================================================
-          SECTION 3: COURSE OVERVIEW CARDS
-      ========================================================================= */}
-      <div className="mt-10 pt-6 border-t border-[#ede2d2]">
-        <h2 className="text-base sm:text-lg font-bold text-[#43342a] tracking-tight mb-4">
-          Current Enrolled Courses
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { code: 'CSDA2101', name: 'Data Analytics & Visualization', color: '#f8edd9', textColor: '#9b6f1e' },
-            { code: 'CSC1215', name: 'Web Computing Fundamentals', color: '#faeaec', textColor: '#8a4b53' },
-            { code: 'CSDB2104', name: 'Database Design & Management', color: '#e5efe5', textColor: '#557859' },
-            { code: 'MATH1102', name: 'Discrete Mathematics', color: '#ede8f5', textColor: '#6b578c' },
-          ].map((course) => (
-            <div
-              key={course.code}
-              className="bg-[#fffefb] rounded-2xl border border-[#ede2d2] p-4 shadow-xs hover:border-[#dfd0be] transition-colors"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: course.textColor }}
-                />
-                <span className="text-xs font-bold tracking-wider" style={{ color: course.textColor }}>
-                  {course.code}
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-[#43342a] leading-tight">
-                {course.name}
-              </h4>
             </div>
           ))}
         </div>

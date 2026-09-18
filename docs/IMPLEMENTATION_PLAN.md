@@ -222,3 +222,5 @@ Never claim an item is complete unless verified.
 - [x] Add post-signup confirmation for Firebase's automatic sign-in flow.
 - [x] Remove the top-right settings gear while retaining sign-out.
 - [ ] Complete authenticated Firebase browser and Vercel deployment verification with production access.
+- [x] Remove the static Study course cards and rename the Work schedule heading to Work & Teaching Schedule.
+- [x] Improve empty-task deletion, manual banner positioning, and create-flow feedback for Study and Work.

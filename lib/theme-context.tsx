@@ -146,9 +146,9 @@ interface ThemeContextType {
   themeConfig: ThemeConfig;
   setTheme: (theme: ThemePreset) => void;
   bannerUrl: string;
-  bannerPosition: 'center' | 'top' | 'bottom';
+  bannerPosition: number;
   setBannerUrl: (url: string) => void;
-  setBannerPosition: (pos: 'center' | 'top' | 'bottom') => void;
+  setBannerPosition: (pos: number) => void;
   resetBannerToDefault: () => void;
 }
 
@@ -159,7 +159,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [theme, setThemeState] = useState<ThemePreset>('morning');
   const [bannerUrl, setBannerUrlState] = useState<string>(DEFAULT_BANNER_PATH);
-  const [bannerPosition, setBannerPositionState] = useState<'center' | 'top' | 'bottom'>('center');
+  const [bannerPosition, setBannerPositionState] = useState(50);
 
   // Load initial settings from profile or localStorage
   useEffect(() => {
@@ -168,11 +168,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setThemeState(profile.theme);
       }
       setBannerUrlState(getBannerUrl(profile.bannerUrl));
-      if (profile.bannerPosition && ['center', 'top', 'bottom'].includes(profile.bannerPosition)) {
-        setBannerPositionState(profile.bannerPosition as any);
-      }
+      if (profile.bannerPosition) setBannerPositionState(profile.bannerPosition === 'top' ? 0 : profile.bannerPosition === 'bottom' ? 100 : Number(profile.bannerPosition) || 50);
     } else {
-      // Demo / Guest mode: check localStorage
+      // Local fallback for unavailable profile settings.
       try {
         const savedTheme = localStorage.getItem('pico_theme') as ThemePreset;
         if (savedTheme && THEME_CONFIGS[savedTheme]) {
@@ -180,10 +178,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         const savedBanner = localStorage.getItem('pico_banner_url');
         setBannerUrlState(getBannerUrl(savedBanner));
-        const savedPos = localStorage.getItem('pico_banner_pos') as any;
-        if (savedPos && ['center', 'top', 'bottom'].includes(savedPos)) {
-          setBannerPositionState(savedPos);
-        }
+        const savedPos = localStorage.getItem('pico_banner_pos');
+        if (savedPos) setBannerPositionState(savedPos === 'top' ? 0 : savedPos === 'bottom' ? 100 : Number(savedPos) || 50);
       } catch {
         // Ignore localStorage error in private browsing
       }
@@ -227,16 +223,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const setBannerPosition = (pos: 'center' | 'top' | 'bottom') => {
-    setBannerPositionState(pos);
+  const setBannerPosition = (pos: number) => {
+    const nextPosition = Math.max(0, Math.min(100, pos));
+    setBannerPositionState(nextPosition);
     try {
-      localStorage.setItem('pico_banner_pos', pos);
+      localStorage.setItem('pico_banner_pos', String(nextPosition));
     } catch {}
 
     if (user) {
       try {
         const userDocRef = doc(db, 'users', user.uid);
-        updateDoc(userDocRef, { bannerPosition: pos }).catch((err) =>
+        updateDoc(userDocRef, { bannerPosition: String(nextPosition) }).catch((err) =>
           console.warn('Failed to save bannerPosition to firestore:', err)
         );
       } catch (err) {
@@ -247,7 +244,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const resetBannerToDefault = () => {
     setBannerUrl(DEFAULT_BANNER_PATH);
-    setBannerPosition('center');
+    setBannerPosition(50);
   };
 
   const themeConfig = THEME_CONFIGS[theme] || THEME_CONFIGS.morning;

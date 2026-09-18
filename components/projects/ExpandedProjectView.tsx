@@ -95,7 +95,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, title: editingTaskTitle.trim() } : t))
       );
-    }
+    } else setTasks((prev) => prev.filter((task) => task.id !== taskId));
     setEditingTaskId(null);
   };
 
