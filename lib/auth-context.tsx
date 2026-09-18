@@ -20,6 +20,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  signingOut: boolean;
   signupSuccess: boolean;
   dismissSignupSuccess: () => void;
   signInWithEmail: (e: string, p: string) => Promise<void>;
@@ -36,12 +37,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [signingOut, setSigningOut] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
     const loadingFallback = window.setTimeout(() => setLoading(false), 1500);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setSigningOut(false);
       // Never hold the whole application behind a networked profile read.
       setLoading(false);
       if (currentUser) {
@@ -133,9 +136,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOutUser = async () => {
-    // Let confirmed local writes reach Firestore before credentials are cleared.
-    await Promise.race([waitForPendingWrites(db), new Promise<void>((resolve) => window.setTimeout(resolve, 5000))]);
-    await signOut(auth);
+    // Hide protected UI immediately while allowing locally accepted writes a brief chance to flush.
+    setSigningOut(true);
+    setProfile(null);
+    try {
+      await Promise.race([waitForPendingWrites(db), new Promise<void>((resolve) => window.setTimeout(resolve, 2000))]);
+    } catch {
+      // Sign-out must never leave the application in an in-between state.
+    }
+    await signOut(auth).catch((error) => {
+      setSigningOut(false);
+      throw error;
+    });
   };
 
   const updateSemesterConfig = async (semesterName: string, semesterStartDate: string) => {
@@ -161,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading,
+        signingOut,
         signupSuccess,
         dismissSignupSuccess: () => setSignupSuccess(false),
         signInWithEmail,

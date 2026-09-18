@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { addDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import {
   GraduationCap,
   Calendar,
@@ -46,7 +46,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
     }
     return onSnapshot(
       query(collection(db, 'assessments'), where('ownerId', '==', user.uid)),
-      (snapshot) => setAssessments(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Assessment))
+      (snapshot) => setAssessments(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Assessment))
     );
   }, [user]);
 
@@ -100,7 +100,8 @@ export const StudyView: React.FC<StudyViewProps> = ({
     if (!user) return;
     setAssessmentError(null);
     try {
-      const write = addDoc(collection(db, 'assessments'), { ...draft, ownerId: user.uid });
+      const assessmentRef = doc(collection(db, 'assessments'));
+      const write = setDoc(assessmentRef, { ...draft, id: assessmentRef.id, ownerId: user.uid });
       // Firestore may wait indefinitely for a server acknowledgement while still applying the local write.
       // Close immediately; the live listener will render the new assessment when available.
       setIsAddOpen(false);

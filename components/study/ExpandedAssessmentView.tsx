@@ -32,6 +32,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { db, getAppStorage } from '../../lib/firebase';
+import { createTask } from '../../lib/task-store';
 import { useAuth } from '../../lib/auth-context';
 import { Assessment, AssessmentResource, Task } from '../../lib/types';
 
@@ -131,6 +132,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   // Journal Notes
   const [notes, setNotes] = useState<JournalEntry[]>([]);
   const [blankNoteText, setBlankNoteText] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   const [activeAuthorId, setActiveAuthorId] = useState('demo-user-pico');
   const [memberIds, setMemberIds] = useState<string[]>([]);
 
@@ -194,13 +197,13 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         }
       }),
       onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', assessmentId)), (snapshot) => {
-        setTasks(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Task));
+        setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
       }),
       onSnapshot(query(collection(db, 'assessmentResources'), where('assessmentId', '==', assessmentId)), (snapshot) => {
-        setResources(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as ResourceItem));
+        setResources(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as ResourceItem));
       }),
       onSnapshot(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId)), (snapshot) => {
-        setNotes(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as JournalEntry).sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
+        setNotes(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as JournalEntry).sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
       }),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -229,7 +232,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 
   // Toggle Task Completion
   const handleToggleTask = (taskId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
     );
     const task = tasks.find((item) => item.id === taskId);
@@ -242,10 +245,10 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const saveTaskTitle = (taskId: string) => {
     const title = editingTaskTitle.trim();
     if (!title) {
-      setTasks((current) => current.filter((task) => task.id !== taskId));
+      if (!user) setTasks((current) => current.filter((task) => task.id !== taskId));
       if (user) void deleteDoc(doc(db, 'tasks', taskId));
     } else {
-      setTasks((current) => current.map((task) => task.id === taskId ? { ...task, title } : task));
+      if (!user) setTasks((current) => current.map((task) => task.id === taskId ? { ...task, title } : task));
       if (user) void updateDoc(doc(db, 'tasks', taskId), { title });
     }
     setEditingTaskId(null);
@@ -253,7 +256,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 
   // Update Task Assignees
   const handleToggleAssignee = (taskId: string, memberId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== taskId) return t;
         const current = t.assignedToUserIds || [];
@@ -270,7 +273,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   };
 
   const handleSetAllAssignees = (taskId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
           ? { ...t, assignedToUserIds: members.map((m) => m.id) }
@@ -281,7 +284,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   };
 
   const handleSetNoneAssignees = (taskId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, assignedToUserIds: [] } : t))
     );
     if (user) void updateDoc(doc(db, 'tasks', taskId), { assignedToUserIds: [] });
@@ -293,8 +296,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       e.preventDefault();
       if (!blankTaskText.trim()) return;
 
-      const newTask: Task = {
-        id: `task-cs-${Date.now()}`,
+      const newTask: Omit<Task, 'id'> = {
         ownerId: user?.uid || 'demo-user-pico',
         title: blankTaskText.trim(),
         completed: false,
@@ -309,8 +311,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      if (user) void addDoc(collection(db, 'tasks'), newTask);
-      else setTasks((prev) => [...prev, newTask]);
+      if (user) void createTask(newTask);
+      else setTasks((prev) => [...prev, { ...newTask, id: `task-cs-${Date.now()}` }]);
       setBlankTaskText('');
     }
   };
@@ -340,6 +342,14 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       else setNotes((prev) => [...prev, newEntry]);
       setBlankNoteText('');
     }
+  };
+
+  const saveJournalEntry = (noteId: string) => {
+    const content = editingNoteText.trim();
+    if (!content) return;
+    if (!user) setNotes((current) => current.map((note) => note.id === noteId ? { ...note, items: [content] } : note));
+    if (user) void updateDoc(doc(db, 'assessmentNotes', noteId), { items: [content] });
+    setEditingNoteId(null);
   };
 
   // Resources Management
@@ -1085,13 +1095,25 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                       <span className="text-[11px] text-[#a9998d] font-medium">{entry.date}</span>
                     </div>
 
-                    <ul className="list-disc list-inside text-[#544133] leading-relaxed space-y-1">
-                      {entry.items.map((item, idx) => (
-                        <li key={idx} className="break-words">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    {editingNoteId === entry.id ? (
+                      <input
+                        autoFocus
+                        value={editingNoteText}
+                        onChange={(event) => setEditingNoteText(event.target.value)}
+                        onBlur={() => saveJournalEntry(entry.id)}
+                        onKeyDown={(event) => { if (event.key === 'Enter') saveJournalEntry(entry.id); if (event.key === 'Escape') setEditingNoteId(null); }}
+                        className="w-full rounded-md border border-[#966746] bg-white px-2 py-1 text-sm text-[#544133] focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingNoteId(entry.id); setEditingNoteText(entry.items.join(' ')); }}
+                        className="w-full text-left text-[#544133] leading-relaxed hover:text-[#966746]"
+                        title="Click to edit journal entry"
+                      >
+                        {entry.items.join(' ')}
+                      </button>
+                    )}
                   </div>
                 );
               })}

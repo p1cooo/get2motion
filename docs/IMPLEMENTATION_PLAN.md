@@ -227,3 +227,13 @@ Never claim an item is complete unless verified.
 - [x] Keep newly created Study assessments in the overview and provide explicit saving/error states.
 - [x] Prevent Firestore acknowledgement delays from freezing creation modals or blanking refreshed routes.
 - [x] Use persistent Firestore cache, exact Work entry matching, and live detail snapshots for persistence regression fixes.
+
+## Persistence/editability regression pass — 19 Sep 2026
+
+- [x] Fix canonical Firestore document-ID handling for Home, Study, and Project listeners and new records.
+- [x] Stop signed-in Home and Study mutations from writing stale local task arrays over snapshot state.
+- [x] Persist Project detail task mutations and Project Idea/Note inline editing.
+- [x] Persist Study journal inline editing without changing author or creation metadata.
+- [x] Render a visible loading state and auth screen during sign-out/direct unauthenticated routes; clean media through provider unmount.
+- [x] Correct non-Home media control visibility so Hide/Restore remains operable.
+- [ ] Run the complete signed-in Firestore regression sequence with a disposable account.

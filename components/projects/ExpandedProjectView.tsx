@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -17,7 +18,10 @@ import {
   X,
   Trash2,
 } from 'lucide-react';
-import { Project } from '../../lib/types';
+import { Project, ProjectIdea, ProjectNote, Task } from '../../lib/types';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../lib/auth-context';
+import { createTask } from '../../lib/task-store';
 
 interface ExpandedProjectViewProps {
   projectId: string;
@@ -27,11 +31,17 @@ interface ExpandedProjectViewProps {
 
 type ProjectStatus = 'Idea' | 'Active' | 'Completed';
 
+const localId = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const normalizeIdeas = (ideas: Project['ideas']): ProjectIdea[] =>
+  (ideas || []).map((idea, index) => typeof idea === 'string' ? { id: `legacy-idea-${index}`, content: idea } : idea);
+const normalizeNotes = (notes: Project['notes']): ProjectNote[] => notes || [];
+
 export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   projectId,
   project: selectedProject,
   onBack,
 }) => {
+  const { user, profile } = useAuth();
   const initialProject = selectedProject ?? {
     id: projectId,
     ownerId: 'guest',
@@ -61,28 +71,54 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [isEditingDate, setIsEditingDate] = useState(false);
 
   // Tasks with inline editing + blank-row quick entry
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [blankTaskText, setBlankTaskText] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
 
   // Ideas with blank-row quick entry
-  const [ideas, setIdeas] = useState<string[]>(
-    initialProject.ideas && initialProject.ideas.length > 0
-      ? initialProject.ideas
-      : []
-  );
+  const [ideas, setIdeas] = useState<ProjectIdea[]>(() => normalizeIdeas(initialProject.ideas));
   const [blankIdeaText, setBlankIdeaText] = useState('');
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [editingIdeaText, setEditingIdeaText] = useState('');
 
   // Notes with fixed-height scrolling container + blank-row quick entry
-  const [notes, setNotes] = useState<string[]>([]);
+  const [notes, setNotes] = useState<ProjectNote[]>(() => normalizeNotes(initialProject.notes));
   const [blankNoteText, setBlankNoteText] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribers = [
+      onSnapshot(doc(db, 'projects', projectId), (snapshot) => {
+        if (!snapshot.exists()) return;
+        const project = { ...snapshot.data(), id: snapshot.id } as Project;
+        setProjectName(project.name);
+        setDescription(project.description);
+        setStatus((project.status as ProjectStatus) || 'Active');
+        setTargetDate(project.targetDate || null);
+        setIdeas(normalizeIdeas(project.ideas));
+        setNotes(normalizeNotes(project.notes));
+      }),
+      onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', projectId)), (snapshot) => {
+        setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
+      }),
+    ];
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [projectId, user]);
+
+  const saveProject = (changes: Partial<Project>) => {
+    if (user) void updateDoc(doc(db, 'projects', projectId), { ...changes, updatedAt: new Date().toISOString() });
+  };
 
   // Task Handlers
   const handleToggleTask = (taskId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
     );
+    const task = tasks.find((item) => item.id === taskId);
+    if (user && task) void updateDoc(doc(db, 'tasks', taskId), { completed: !task.completed, completedAt: task.completed ? null : new Date().toISOString() });
   };
 
   const handleStartEditTask = (taskId: string, currentTitle: string) => {
@@ -92,10 +128,14 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
 
   const handleSaveTaskTitle = (taskId: string) => {
     if (editingTaskTitle.trim()) {
-      setTasks((prev) =>
+      if (!user) setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, title: editingTaskTitle.trim() } : t))
       );
-    } else setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      if (user) void updateDoc(doc(db, 'tasks', taskId), { title: editingTaskTitle.trim() });
+    } else {
+      if (!user) setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      if (user) void deleteDoc(doc(db, 'tasks', taskId));
+    }
     setEditingTaskId(null);
   };
 
@@ -105,8 +145,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
       e.preventDefault();
       if (!blankTaskText.trim()) return;
 
-      const newTask = {
-        id: `task-${Date.now()}`,
+      const newTask: Omit<Task, 'id'> = {
         ownerId: initialProject.ownerId,
         title: blankTaskText.trim(),
         completed: false,
@@ -121,7 +160,8 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
         assignedToUserIds: [initialProject.ownerId],
       };
 
-      setTasks((prev) => [...prev, newTask]);
+      if (user) void createTask(newTask);
+      else setTasks((prev) => [...prev, { ...newTask, id: `task-${Date.now()}` }]);
       setBlankTaskText('');
     }
   };
@@ -131,7 +171,9 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankIdeaText.trim()) return;
-      setIdeas((prev) => [...prev, blankIdeaText.trim()]);
+      const next = [...ideas, { id: localId(), content: blankIdeaText.trim() }];
+      setIdeas(next);
+      saveProject({ ideas: next });
       setBlankIdeaText('');
     }
   };
@@ -141,13 +183,33 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankNoteText.trim()) return;
-      const today = new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      setNotes((prev) => [`${today}: ${blankNoteText.trim()}`, ...prev]);
+      const next = [...notes, {
+        id: localId(),
+        content: blankNoteText.trim(),
+        authorId: user?.uid || initialProject.ownerId,
+        authorName: profile?.displayName || user?.displayName || undefined,
+        createdAt: new Date().toISOString(),
+      }];
+      setNotes(next);
+      saveProject({ notes: next });
       setBlankNoteText('');
     }
+  };
+
+  const saveIdea = (id: string) => {
+    const content = editingIdeaText.trim();
+    const next = content ? ideas.map((idea) => idea.id === id ? { ...idea, content } : idea) : ideas.filter((idea) => idea.id !== id);
+    setIdeas(next);
+    saveProject({ ideas: next });
+    setEditingIdeaId(null);
+  };
+
+  const saveNote = (id: string) => {
+    const content = editingNoteText.trim();
+    const next = content ? notes.map((note) => note.id === id ? { ...note, content } : note) : notes.filter((note) => note.id !== id);
+    setNotes(next);
+    saveProject({ notes: next });
+    setEditingNoteId(null);
   };
 
   return (
@@ -206,6 +268,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
                         key={s}
                         onClick={() => {
                           setStatus(s);
+                          saveProject({ status: s });
                           setShowStatusDropdown(false);
                         }}
                         className={`px-3 py-1.5 rounded-xl text-left font-semibold cursor-pointer transition-colors ${
@@ -227,10 +290,10 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
                   type="text"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
-                  onBlur={() => setIsEditingName(false)}
+                  onBlur={() => { saveProject({ name: projectName.trim() || initialProject.name }); setIsEditingName(false); }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingName(false);
-                    if (e.key === 'Escape') setIsEditingName(false);
+                    if (e.key === 'Enter') { saveProject({ name: projectName.trim() || initialProject.name }); setIsEditingName(false); }
+                    if (e.key === 'Escape') { setProjectName(initialProject.name); setIsEditingName(false); }
                   }}
                   autoFocus
                   className="w-full text-2xl sm:text-3xl font-extrabold text-[#43342a] bg-white border border-[#966746] rounded-xl px-2 py-0.5 focus:outline-none"
@@ -251,10 +314,11 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
                   rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  onBlur={() => setIsEditingDesc(false)}
+                  onBlur={() => { saveProject({ description }); setIsEditingDesc(false); }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
+                      saveProject({ description });
                       setIsEditingDesc(false);
                     }
                   }}
@@ -281,7 +345,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
               </span>
               {targetDate && (
                 <button
-                  onClick={() => setTargetDate(null)}
+                  onClick={() => { setTargetDate(null); saveProject({ targetDate: null }); }}
                   className="text-[10px] text-[#966746] hover:underline"
                   title="Clear target date"
                 >
@@ -296,6 +360,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
                 value={targetDate || ''}
                 onChange={(e) => {
                   setTargetDate(e.target.value || null);
+                  saveProject({ targetDate: e.target.value || null });
                   setIsEditingDate(false);
                 }}
                 onBlur={() => setIsEditingDate(false)}
@@ -431,13 +496,26 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
           </div>
 
           <div className="flex flex-col divide-y divide-[#f7f0e6] max-h-[300px] overflow-y-auto pr-1">
-            {ideas.map((idea, idx) => (
+            {ideas.map((idea) => (
               <div
-                key={idx}
+                key={idea.id}
                 className="py-2.5 text-xs sm:text-sm text-[#483a30] leading-relaxed flex items-start gap-2"
               >
                 <span className="text-[#e8c078] font-bold mt-0.5">💡</span>
-                <span className="flex-1 break-words">{idea}</span>
+                {editingIdeaId === idea.id ? (
+                  <input
+                    autoFocus
+                    value={editingIdeaText}
+                    onChange={(event) => setEditingIdeaText(event.target.value)}
+                    onBlur={() => saveIdea(idea.id)}
+                    onKeyDown={(event) => { if (event.key === 'Enter') saveIdea(idea.id); if (event.key === 'Escape') setEditingIdeaId(null); }}
+                    className="flex-1 rounded-md border border-[#966746] bg-white px-2 py-0.5 text-xs sm:text-sm focus:outline-none"
+                  />
+                ) : (
+                  <button type="button" onClick={() => { setEditingIdeaId(idea.id); setEditingIdeaText(idea.content); }} className="flex-1 break-words text-left hover:text-[#966746]" title="Click to edit idea">
+                    {idea.content}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -473,13 +551,26 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
 
           {/* Fixed-Height Scroll Container */}
           <div className="flex flex-col divide-y divide-[#f7f0e6] max-h-[300px] overflow-y-auto pr-1">
-            {notes.map((note, idx) => (
+            {notes.map((note) => (
               <div
-                key={idx}
+                key={note.id}
                 className="py-2.5 text-xs sm:text-sm text-[#483a30] leading-relaxed flex items-start gap-2"
               >
                 <span className="text-[#8fae92] font-bold mt-0.5">•</span>
-                <span className="flex-1 break-words">{note}</span>
+                {editingNoteId === note.id ? (
+                  <input
+                    autoFocus
+                    value={editingNoteText}
+                    onChange={(event) => setEditingNoteText(event.target.value)}
+                    onBlur={() => saveNote(note.id)}
+                    onKeyDown={(event) => { if (event.key === 'Enter') saveNote(note.id); if (event.key === 'Escape') setEditingNoteId(null); }}
+                    className="flex-1 rounded-md border border-[#966746] bg-white px-2 py-0.5 text-xs sm:text-sm focus:outline-none"
+                  />
+                ) : (
+                  <button type="button" onClick={() => { setEditingNoteId(note.id); setEditingNoteText(note.content); }} className="flex-1 break-words text-left hover:text-[#966746]" title="Click to edit note">
+                    {note.content}
+                  </button>
+                )}
               </div>
             ))}
           </div>

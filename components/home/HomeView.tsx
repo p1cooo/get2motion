@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { addDoc, collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
   Flag,
   Plus,
@@ -19,6 +19,7 @@ import { useAuth } from '../../lib/auth-context';
 import { Task } from '../../lib/types';
 import { CozyMediaPanel } from './CozyMediaPanel';
 import { db } from '../../lib/firebase';
+import { createTask } from '../../lib/task-store';
 import confetti from 'canvas-confetti';
 
 interface HomeViewProps {
@@ -41,7 +42,8 @@ export const HomeView: React.FC<HomeViewProps> = () => {
     }
     return onSnapshot(
       query(collection(db, 'tasks'), where('ownerId', '==', user.uid)),
-      (snapshot) => setTasks(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Task))
+      // Document ID wins over legacy data.id values created by older builds.
+      (snapshot) => setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task))
     );
   }, [user]);
 
@@ -75,7 +77,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   // Checkbox toggle handler (Only checkbox toggles completion!)
   const handleToggleTask = (taskId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((task) => {
         if (task.id === taskId) {
           const nextCompleted = !task.completed;
@@ -109,7 +111,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
 
   // Move task to Main Quest (multi-quest supported)
   const handleMoveToMainQuest = (taskId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, priority: 'mainQuest', showOnHome: true } : t))
     );
     if (user) void updateDoc(doc(db, 'tasks', taskId), { priority: 'mainQuest', showOnHome: true });
@@ -117,7 +119,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
 
   // Move task to Things To Do
   const handleMoveToThingsToDo = (taskId: string) => {
-    setTasks((prev) =>
+    if (!user) setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, priority: 'normal', showOnHome: true } : t))
     );
     if (user) void updateDoc(doc(db, 'tasks', taskId), { priority: 'normal', showOnHome: true });
@@ -133,14 +135,14 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   // Save inline editing
   const saveEditing = () => {
     if (editingTaskId && editingTaskTitle.trim()) {
-      setTasks((prev) =>
+      if (!user) setTasks((prev) =>
         prev.map((t) =>
           t.id === editingTaskId ? { ...t, title: editingTaskTitle.trim() } : t
         )
       );
     }
     if (editingTaskId && !editingTaskTitle.trim()) {
-      setTasks((prev) => prev.filter((task) => task.id !== editingTaskId));
+      if (!user) setTasks((prev) => prev.filter((task) => task.id !== editingTaskId));
       if (user) void deleteDoc(doc(db, 'tasks', editingTaskId));
     } else if (user && editingTaskId) {
       void updateDoc(doc(db, 'tasks', editingTaskId), { title: editingTaskTitle.trim() });
@@ -154,8 +156,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
       e.preventDefault();
       if (!blankThingsToDoText.trim()) return;
 
-      const newTask: Task = {
-        id: `task-user-${Date.now()}`,
+      const newTask: Omit<Task, 'id'> = {
         ownerId: user?.uid || 'demo-user-pico',
         title: blankThingsToDoText.trim(),
         completed: false,
@@ -170,8 +171,8 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      if (user) void addDoc(collection(db, 'tasks'), newTask);
-      else setTasks((prev) => [...prev, newTask]);
+      if (user) void createTask(newTask);
+      else setTasks((prev) => [...prev, { ...newTask, id: `task-user-${Date.now()}` }]);
       setBlankThingsToDoText('');
     } else if (e.key === 'Escape') {
       setBlankThingsToDoText('');
@@ -185,8 +186,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
       e.preventDefault();
       if (!blankMainQuestText.trim()) return;
 
-      const newTask: Task = {
-        id: `task-mq-${Date.now()}`,
+      const newTask: Omit<Task, 'id'> = {
         ownerId: user?.uid || 'demo-user-pico',
         title: blankMainQuestText.trim(),
         completed: false,
@@ -201,8 +201,8 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      if (user) void addDoc(collection(db, 'tasks'), newTask);
-      else setTasks((prev) => [newTask, ...prev]);
+      if (user) void createTask(newTask);
+      else setTasks((prev) => [{ ...newTask, id: `task-mq-${Date.now()}` }, ...prev]);
       setBlankMainQuestText('');
     } else if (e.key === 'Escape') {
       setBlankMainQuestText('');

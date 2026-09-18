@@ -237,3 +237,12 @@ Check items only after implementation and verification.
 - [x] Work day timeline matches entries by their exact persisted start time.
 - [x] Work detail subscribes to the selected owner-scoped item and displays its persisted title.
 - [x] Floating media can be hidden/restored and is cleaned up on logout.
+
+## Persistence/editability regression pass — 19 Sep 2026
+- [x] Home task updates/deletes use the canonical Firestore document ID.
+- [x] Study task updates/deletes use the canonical Firestore document ID.
+- [x] Project task updates/deletes use the canonical Firestore document ID.
+- [x] Project Ideas and Notes support persisted inline editing.
+- [x] Study journal entries support persisted inline editing without author/created-at changes.
+- [x] Direct unauthenticated Study, Work, and Projects routes render an auth screen.
+- [ ] Authenticated create/complete/delete/refresh/logout regression sequence verified against Firestore.

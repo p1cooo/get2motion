@@ -248,3 +248,12 @@ Do not use temporary generated-image URLs.
 - Study task titles can be edited without replacing their completion or assignee fields.
 - Work month/day rendering uses exact dates and start times, and Work detail listens to the selected record rather than waiting for a server-only read.
 - The media player stops and removes its detached floating element on logout; non-Home playback can now be hidden and restored.
+
+## Persistence/editability regression pass — 19 Sep 2026
+
+- Root cause: several Firestore listeners spread `id` in the wrong order. Legacy records carried a generated data `id` that differed from the Firestore document ID, so later update/delete calls targeted a nonexistent document; the next listener snapshot then appeared to resurrect or reset the record.
+- Home, Study, and Projects now treat the Firestore document ID as canonical, and newly-created Home/Study/Project records write the same ID into both locations.
+- Signed-in Home, Study, and Project task mutations now rely on their Firestore snapshot rather than overwriting it with local optimistic arrays.
+- Project Ideas and Notes & Brainstorm Log use stable entry IDs, inline editing, and persisted structured data. Existing string ideas remain readable and are normalized on the next save.
+- Study journal entries now support inline editing while preserving author and creation metadata.
+- Direct unauthenticated `/study`, `/work`, and `/projects` routes were browser-verified to show the Motion auth screen instead of an empty page. Authenticated Firestore end-to-end verification requires a disposable account.

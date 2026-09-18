@@ -111,9 +111,23 @@ export interface Project {
   icon: string;
   targetDate?: string | null; // "YYYY-MM-DD"
   overviewNotes?: string;
-  ideas?: string[];
+  ideas?: ProjectIdea[] | string[];
+  notes?: ProjectNote[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ProjectIdea {
+  id: string;
+  content: string;
+}
+
+export interface ProjectNote {
+  id: string;
+  content: string;
+  authorId: string;
+  authorName?: string;
+  createdAt: string;
 }
 
 export interface CollaborationCode {

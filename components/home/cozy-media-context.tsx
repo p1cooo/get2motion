@@ -85,7 +85,7 @@ const CozyMediaPlayer: React.FC<{ frameRef: React.RefObject<HTMLIFrameElement | 
     {!isHome && isHidden && <button onClick={() => setIsHidden(false)} className="fixed bottom-4 right-4 z-40 rounded-full border border-[#ede2d2] bg-[#fffefb] p-3 text-[#786659] shadow-lg hover:bg-[#f6eee3]" title="Show media player" aria-label="Show media player"><Maximize2 className="w-4 h-4" /></button>}
     <aside ref={playerRef} className={`z-40 overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl ${isHome ? 'w-full rounded-xl' : `fixed bottom-4 right-4 w-56 rounded-2xl ${isHidden ? 'invisible pointer-events-none' : ''}`}`} aria-label={isHome ? 'Cozy media player' : 'Cozy media mini-player'}>
     <iframe ref={frameRef} src={`${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}enablejsapi=1&playsinline=1`} title="Cozy Media Stream" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" className="block w-full aspect-video border-0" />
-    <div className={`${slot ? 'hidden' : 'flex'} items-center justify-center gap-2 p-1.5`}>
+    <div className={`${isHome && slot ? 'hidden' : 'flex'} items-center justify-center gap-2 p-1.5`}>
       <button onClick={previous} disabled={!isPlaylist} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3] disabled:opacity-35" title="Previous"><ChevronLeft className="w-4 h-4" /></button>
       <button onClick={pause} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3]" title="Pause"><Pause className="w-4 h-4" /></button>
       <button onClick={play} className="p-1.5 rounded-lg bg-[#966746] text-white hover:bg-[#7e5335]" title="Play"><Play className="w-4 h-4" /></button>

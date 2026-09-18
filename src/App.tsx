@@ -24,7 +24,7 @@ function getInitialTab(): ActiveTab {
 }
 
 function DashboardContent() {
-  const { user, loading, signupSuccess, dismissSignupSuccess } = useAuth();
+  const { user, loading, signingOut, signupSuccess, dismissSignupSuccess } = useAuth();
   const { themeConfig } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
 
@@ -53,9 +53,9 @@ function DashboardContent() {
     setSelectedProject(null);
   };
 
-  if (loading) return <div className="min-h-screen bg-[#faf6ef]" />;
+  if (loading) return <div className="min-h-screen bg-[#faf6ef] flex items-center justify-center text-sm font-semibold text-[#786659]">Opening Motion…</div>;
 
-  if (!user) {
+  if (!user || signingOut) {
     return <AuthModal isOpen onClose={() => {}} />;
   }
 

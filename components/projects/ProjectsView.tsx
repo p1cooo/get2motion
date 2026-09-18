@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import {
   Lightbulb,
   Plus,
@@ -40,7 +40,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     if (!user) { setProjects([]); return; }
     return onSnapshot(
       query(collection(db, 'projects'), where('ownerId', '==', user.uid)),
-      (snapshot) => setProjects(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Project)),
+      (snapshot) => setProjects(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Project)),
     );
   }, [user]);
 
@@ -103,8 +103,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     e.preventDefault();
     if (!newProjName.trim()) return;
 
+    const projectRef = doc(collection(db, 'projects'));
     const newProj: Project = {
-      id: `proj-${Date.now()}`,
+      id: projectRef.id,
       ownerId: user?.uid || '',
       name: newProjName.trim(),
       description: newProjDesc.trim() || 'A new personal endeavor.',
@@ -121,7 +122,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       updatedAt: new Date().toISOString(),
     };
 
-    if (user) void addDoc(collection(db, 'projects'), newProj);
+    if (user) void setDoc(projectRef, newProj);
     setIsAddModalOpen(false);
     setNewProjName('');
     setNewProjDesc('');
