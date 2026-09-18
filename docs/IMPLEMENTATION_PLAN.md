@@ -174,11 +174,12 @@ Only after core UI/logic is stable.
 - [x] Inspect Firebase environment usage; Vite `VITE_FIREBASE_*` overrides documented with public-config fallback
 - [ ] Keep `.env.local` outside Git
 - [ ] Email/password signup/login
+- [x] Correct email/password sign-up argument order and map Firebase Auth error codes for production diagnosis
 - [ ] Display Name
 - [ ] Google sign-in
 - [x] Forgot password UI wired to the existing Auth context (browser verification pending)
 - [ ] Logout
-- [ ] Friendly error mapping
+- [x] Friendly Firebase Auth error mapping
 - [ ] Firestore owner isolation
 - [ ] Collaboration security
 - [x] Firebase Storage used by signed-in Assessment resource uploads; deployment rules still require project-specific validation

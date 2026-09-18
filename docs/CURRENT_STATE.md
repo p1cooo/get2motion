@@ -156,6 +156,12 @@ Visual styling in the lower portions of several pages is already close to the de
 - The updated Firestore rules were deployed to Motion. Storage rules were also deployed for the existing `assessments/{assessmentId}/resources/{fileName}` path.
 - The active Motion client uses the `(default)` Firestore database, so Storage’s Firestore lookup uses the correct database. Storage allows only authenticated assessment owners/members to read, create (under 20 MiB), or delete resources; all other paths and updates remain denied by default.
 
+### Firebase auth debugging pass (18 Sep 2026)
+
+- The local Motion Firebase configuration returned `auth/invalid-api-key` from the Auth SDK. Production must use the Web API key from the Motion Firebase web app for `VITE_FIREBASE_API_KEY`, then be redeployed so Vite embeds that value.
+- The sign-up form was also passing `(email, password, displayName)` to a `(displayName, email, password)` function. It now passes the correct order, and the auth modal distinguishes invalid API key, invalid email, disabled provider, unauthorized domain, network, credential, and popup-cancelled failures.
+- Google sign-in continues to use `GoogleAuthProvider` with `signInWithPopup`; an authorized-domain change is only required if it returns `auth/unauthorized-domain` after the API-key correction.
+
 ### Work
 
 The month calendar visual design was close to the desired layout and should be preserved.

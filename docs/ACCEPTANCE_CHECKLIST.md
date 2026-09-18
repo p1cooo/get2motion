@@ -204,7 +204,7 @@ Check items only after implementation and verification.
 - [ ] Google sign-in works
 - [ ] Forgot password works
 - [ ] Logout works
-- [ ] Friendly Firebase errors replace raw errors
+- [x] Friendly Firebase Auth errors replace raw errors
 - [ ] User data isolated by owner UID
 - [ ] Collaboration cannot expose unrelated data
 - [ ] Firebase Storage used only where needed
