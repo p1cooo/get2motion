@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { arrayUnion, doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
 import {
   ArrowLeft,
   Calendar,
@@ -19,6 +19,13 @@ import {
 import type { CalendarEntryDemo } from '../../lib/demo-data';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
+
+type PrepItem = { id: string; title: string; completed: boolean };
+type WorkDetailData = CalendarEntryDemo & {
+  whatHappened?: string[];
+  nextLesson?: string[];
+  todoPrep?: PrepItem[];
+};
 
 interface ClassDetailViewProps {
   workItemId: string;
@@ -45,16 +52,16 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (!user) { setEntry(null); return; }
     return onSnapshot(doc(db, 'workItems', workItemId), (snapshot) => {
       if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) { setEntry(null); return; }
-      const data = snapshot.data() as Omit<CalendarEntryDemo, 'id' | 'workItemId'>;
+      const data = snapshot.data() as Omit<WorkDetailData, 'id' | 'workItemId'>;
       setEntry({ ...data, id: snapshot.id, workItemId: snapshot.id, dayNum: Number(data.date?.slice(-2)) || 1 });
     });
   }, [user, workItemId]);
   const diary = {
     studentName: entry?.title ?? 'Work item',
     subtitle: `${entry?.date ?? dateStr} • ${entry?.type === 'class' ? 'Class details' : 'Event details'}`,
-    whatHappened: [],
-    nextLesson: [],
-    todoPrep: [],
+    whatHappened: (entry as WorkDetailData | null)?.whatHappened || [],
+    nextLesson: (entry as WorkDetailData | null)?.nextLesson || [],
+    todoPrep: (entry as WorkDetailData | null)?.todoPrep || [],
   };
 
   // Editable Session Date, Time, and Recurrence
@@ -85,12 +92,41 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     setStartTime(start);
     setEndTime(end);
     setRecurrence((entry.recurrenceRule as RecurrenceType) || 'Does not repeat');
+    setWhatHappened((entry as WorkDetailData).whatHappened || []);
+    setNextLesson((entry as WorkDetailData).nextLesson || []);
+    setTodoPrep((entry as WorkDetailData).todoPrep || []);
   }, [entry]);
 
+  const saveEntry = (changes: Record<string, unknown>) => {
+    if (user && entry) void updateDoc(doc(db, 'workItems', entry.id), changes);
+  };
+
+  const addPrepItem = (item: PrepItem) => {
+    if (!user) {
+      setTodoPrep((current) => [...current, item]);
+      return;
+    }
+    void runTransaction(db, async (transaction) => {
+      const workItemRef = doc(db, 'workItems', workItemId);
+      const snapshot = await transaction.get(workItemRef);
+      if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) return;
+      const current = (snapshot.data() as WorkDetailData).todoPrep || [];
+      transaction.update(workItemRef, { todoPrep: [...current, item] });
+    });
+  };
+
   const handleTogglePrep = (id: string) => {
-    setTodoPrep((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
-    );
+    if (!user) {
+      setTodoPrep((prev) => prev.map((item) => item.id === id ? { ...item, completed: !item.completed } : item));
+      return;
+    }
+    void runTransaction(db, async (transaction) => {
+      const workItemRef = doc(db, 'workItems', workItemId);
+      const snapshot = await transaction.get(workItemRef);
+      if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) return;
+      const current = (snapshot.data() as WorkDetailData).todoPrep || [];
+      transaction.update(workItemRef, { todoPrep: current.map((item) => item.id === id ? { ...item, completed: !item.completed } : item) });
+    });
   };
 
   // Blank row quick entry: What Happened
@@ -98,7 +134,8 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankHappened.trim()) return;
-      setWhatHappened((prev) => [...prev, blankHappened.trim()]);
+      if (!user) setWhatHappened((current) => [...current, blankHappened.trim()]);
+      else saveEntry({ whatHappened: arrayUnion(blankHappened.trim()) });
       setBlankHappened('');
     } else if (e.key === 'Escape') {
       setBlankHappened('');
@@ -110,7 +147,8 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankNext.trim()) return;
-      setNextLesson((prev) => [...prev, blankNext.trim()]);
+      if (!user) setNextLesson((current) => [...current, blankNext.trim()]);
+      else saveEntry({ nextLesson: arrayUnion(blankNext.trim()) });
       setBlankNext('');
     } else if (e.key === 'Escape') {
       setBlankNext('');
@@ -122,10 +160,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankPrep.trim()) return;
-      setTodoPrep((prev) => [
-        ...prev,
-        { id: `prep-${Date.now()}`, title: blankPrep.trim(), completed: false },
-      ]);
+      addPrepItem({ id: crypto.randomUUID?.() || `prep-${Date.now()}`, title: blankPrep.trim(), completed: false });
       setBlankPrep('');
     } else if (e.key === 'Escape') {
       setBlankPrep('');
@@ -175,6 +210,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
                   value={sessionDate}
                   onChange={(e) => {
                     setSessionDate(e.target.value);
+                    saveEntry({ date: e.target.value });
                     setIsEditingDate(false);
                   }}
                   onBlur={() => setIsEditingDate(false)}
@@ -210,7 +246,16 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
                     type="text"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    onBlur={() => setIsEditingTime(false)}
+                    onBlur={() => {
+                      saveEntry({ time: `${startTime} – ${endTime}` });
+                      setIsEditingTime(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        saveEntry({ time: `${startTime} – ${endTime}` });
+                        setIsEditingTime(false);
+                      }
+                    }}
                     className="w-14 text-xs font-bold text-[#966746] bg-white border border-[#966746] rounded px-1"
                   />
                 </div>
@@ -258,6 +303,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
                       key={rec}
                       onClick={() => {
                         setRecurrence(rec);
+                        saveEntry({ recurrenceRule: rec });
                         setShowRecurrenceMenu(false);
                       }}
                       className={`px-3 py-1.5 rounded-xl text-left font-semibold cursor-pointer transition-colors ${

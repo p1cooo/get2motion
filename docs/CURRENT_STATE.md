@@ -257,3 +257,10 @@ Do not use temporary generated-image URLs.
 - Project Ideas and Notes & Brainstorm Log use stable entry IDs, inline editing, and persisted structured data. Existing string ideas remain readable and are normalized on the next save.
 - Study journal entries now support inline editing while preserving author and creation metadata.
 - Direct unauthenticated `/study`, `/work`, and `/projects` routes were browser-verified to show the Motion auth screen instead of an empty page. Authenticated Firestore end-to-end verification requires a disposable account.
+
+## Stabilization audit — 19 Sep 2026
+
+- The cross-browser task resurrection root cause remains the legacy Firestore data `id` being allowed to override the canonical document ID during listener mapping. Current Home, Study, and Project task listeners correctly assign `id: snapshot.id` last, and mutations target that canonical ID.
+- Work Detail had a separate P1 defect: schedule edits and all three journal/checklist controls updated only component state. They now write the selected owner-scoped `workItems/{id}` document, and the listener rehydrates those fields after refresh or another browser's update.
+- Signed-in Work drag/reschedule now updates Firestore rather than leaving an in-memory visual move. Project ideas and notes now mutate their embedded arrays inside Firestore transactions, preventing a stale tab from overwriting a newer array written by another tab.
+- The local app endpoint responds successfully and lint, typecheck, and production build pass. Full authenticated two-browser verification is still blocked by the absence of a disposable Firebase account and a usable second browser context; it must remain incomplete until that sequence is run.

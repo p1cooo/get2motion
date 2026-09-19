@@ -237,3 +237,10 @@ Never claim an item is complete unless verified.
 - [x] Render a visible loading state and auth screen during sign-out/direct unauthenticated routes; clean media through provider unmount.
 - [x] Correct non-Home media control visibility so Hide/Restore remains operable.
 - [ ] Run the complete signed-in Firestore regression sequence with a disposable account.
+
+### Stabilization audit — 19 Sep 2026
+
+- [x] Repair Work Detail schedule/journal controls that were visual-only state changes instead of owner-scoped Firestore writes.
+- [x] Prevent stale Project idea/note arrays from overwriting a newer browser's data by applying embedded-list changes in Firestore transactions.
+- [x] Ensure signed-in Work rescheduling writes the source `workItems` document rather than only changing visible React state.
+- [ ] Run the required signed-in two-browser Home, Study, Work, and Projects regression sequence with a disposable Firebase account.

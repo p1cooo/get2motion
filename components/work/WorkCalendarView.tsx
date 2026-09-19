@@ -277,6 +277,15 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   const executeReschedule = (entry: CalendarEntryDemo, targetDay: number, allFuture: boolean) => {
     const newDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
 
+    // Signed-in schedules are driven by the Firestore listener. Do not leave a
+    // visual-only move in component state when the document is the real record.
+    if (user) {
+      void updateDoc(doc(db, 'workItems', entry.id), { date: newDate });
+      setPendingRecurringDrop(null);
+      setDraggedEntryId(null);
+      return;
+    }
+
     if (allFuture) {
       // Shift all future occurrences by delta
       const delta = targetDay - entry.dayNum;
@@ -309,7 +318,6 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
           return item;
         })
       );
-      if (user) void updateDoc(doc(db, 'workItems', entry.id), { date: newDate });
     }
     setPendingRecurringDrop(null);
     setDraggedEntryId(null);

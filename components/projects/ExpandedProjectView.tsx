@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -112,6 +112,36 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (user) void updateDoc(doc(db, 'projects', projectId), { ...changes, updatedAt: new Date().toISOString() });
   };
 
+  // Ideas and notes are embedded arrays. Read the current document inside a
+  // transaction so an older browser cannot overwrite a newer entry array.
+  const updateIdeas = (mutate: (current: ProjectIdea[]) => ProjectIdea[]) => {
+    if (!user) {
+      setIdeas(mutate);
+      return;
+    }
+    void runTransaction(db, async (transaction) => {
+      const projectRef = doc(db, 'projects', projectId);
+      const snapshot = await transaction.get(projectRef);
+      if (!snapshot.exists()) return;
+      const current = normalizeIdeas((snapshot.data() as Project).ideas);
+      transaction.update(projectRef, { ideas: mutate(current), updatedAt: new Date().toISOString() });
+    }).catch((error) => console.error('Could not save project ideas.', error));
+  };
+
+  const updateNotes = (mutate: (current: ProjectNote[]) => ProjectNote[]) => {
+    if (!user) {
+      setNotes(mutate);
+      return;
+    }
+    void runTransaction(db, async (transaction) => {
+      const projectRef = doc(db, 'projects', projectId);
+      const snapshot = await transaction.get(projectRef);
+      if (!snapshot.exists()) return;
+      const current = normalizeNotes((snapshot.data() as Project).notes);
+      transaction.update(projectRef, { notes: mutate(current), updatedAt: new Date().toISOString() });
+    }).catch((error) => console.error('Could not save project notes.', error));
+  };
+
   // Task Handlers
   const handleToggleTask = (taskId: string) => {
     if (!user) setTasks((prev) =>
@@ -146,7 +176,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
       if (!blankTaskText.trim()) return;
 
       const newTask: Omit<Task, 'id'> = {
-        ownerId: initialProject.ownerId,
+        ownerId: user?.uid || initialProject.ownerId,
         title: blankTaskText.trim(),
         completed: false,
         completedAt: null,
@@ -156,8 +186,8 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
         priority: 'normal' as const,
         showOnHome: false,
         parentType: 'project' as const,
-        parentId: initialProject.id,
-        assignedToUserIds: [initialProject.ownerId],
+        parentId: projectId,
+        assignedToUserIds: [user?.uid || initialProject.ownerId],
       };
 
       if (user) void createTask(newTask);
@@ -171,9 +201,8 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankIdeaText.trim()) return;
-      const next = [...ideas, { id: localId(), content: blankIdeaText.trim() }];
-      setIdeas(next);
-      saveProject({ ideas: next });
+      const idea = { id: localId(), content: blankIdeaText.trim() };
+      updateIdeas((current) => [...current, idea]);
       setBlankIdeaText('');
     }
   };
@@ -183,32 +212,31 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankNoteText.trim()) return;
-      const next = [...notes, {
+      const note = {
         id: localId(),
         content: blankNoteText.trim(),
         authorId: user?.uid || initialProject.ownerId,
         authorName: profile?.displayName || user?.displayName || undefined,
         createdAt: new Date().toISOString(),
-      }];
-      setNotes(next);
-      saveProject({ notes: next });
+      };
+      updateNotes((current) => [...current, note]);
       setBlankNoteText('');
     }
   };
 
   const saveIdea = (id: string) => {
     const content = editingIdeaText.trim();
-    const next = content ? ideas.map((idea) => idea.id === id ? { ...idea, content } : idea) : ideas.filter((idea) => idea.id !== id);
-    setIdeas(next);
-    saveProject({ ideas: next });
+    updateIdeas((current) => content
+      ? current.map((idea) => idea.id === id ? { ...idea, content } : idea)
+      : current.filter((idea) => idea.id !== id));
     setEditingIdeaId(null);
   };
 
   const saveNote = (id: string) => {
     const content = editingNoteText.trim();
-    const next = content ? notes.map((note) => note.id === id ? { ...note, content } : note) : notes.filter((note) => note.id !== id);
-    setNotes(next);
-    saveProject({ notes: next });
+    updateNotes((current) => content
+      ? current.map((note) => note.id === id ? { ...note, content } : note)
+      : current.filter((note) => note.id !== id));
     setEditingNoteId(null);
   };
 
