@@ -6,11 +6,12 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   query,
-  runTransaction,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
@@ -108,7 +109,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [collabCode, setCollabCode] = useState(
     initialAssessment.collaborationCode && initialAssessment.collaborationCode.length === 5
       ? initialAssessment.collaborationCode
-      : 'KJQTX'
+      : ''
   );
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -136,6 +137,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [editingNoteText, setEditingNoteText] = useState('');
   const [activeAuthorId, setActiveAuthorId] = useState('demo-user-pico');
   const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const members = user
     ? Array.from(new Set([user.uid, ...memberIds])).map((id, index) => {
@@ -155,20 +157,22 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 
   const persistNewCode = async (previousCode?: string | null) => {
     if (!user) return;
-    const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const code = Array.from({ length: 5 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
       try {
-        await runTransaction(db, async (transaction) => {
+        const batch = writeBatch(db);
           const codeRef = doc(db, 'collaborationCodes', code);
-          if ((await transaction.get(codeRef)).exists()) throw new Error('Code already exists');
-          transaction.set(codeRef, { code, assessmentId, ownerId: user.uid, enabled: true });
-          transaction.update(doc(db, 'assessments', assessmentId), {
+          // Creating the lookup directly lets Firestore's create rule reject a
+          // collision. A client read is neither needed nor allowed by every
+          // deployed ruleset.
+          batch.set(codeRef, { code, assessmentId, ownerId: user.uid, enabled: true });
+          batch.update(doc(db, 'assessments', assessmentId), {
             collaborationCode: code,
             collaborationEnabled: true,
           });
-          if (previousCode && previousCode !== code) transaction.delete(doc(db, 'collaborationCodes', previousCode));
-        });
+          if (previousCode?.match(/^[A-Z]{5}$/) && previousCode !== code) batch.delete(doc(db, 'collaborationCodes', previousCode));
+          await batch.commit();
         setCollabCode(code);
         return;
       } catch (error) {
@@ -195,22 +199,50 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
           initializedCodeFor.current = assessmentId;
           void persistNewCode(assessment.collaborationCode);
         }
-      }),
-      onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', assessmentId)), (snapshot) => {
+      }, (error) => console.error('Assessment listener failed.', error)),
+      onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', assessmentId), where('ownerId', '==', user.uid)), (snapshot) => {
         setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
-      }),
+      }, (error) => console.error('Assessment task listener failed.', error)),
       onSnapshot(query(collection(db, 'assessmentResources'), where('assessmentId', '==', assessmentId)), (snapshot) => {
         setResources(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as ResourceItem));
-      }),
+      }, (error) => console.error('Assessment resource listener failed.', error)),
       onSnapshot(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId)), (snapshot) => {
         setNotes(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as JournalEntry).sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
-      }),
+      }, (error) => console.error('Assessment note listener failed.', error)),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [assessmentId, user]);
 
   const saveAssessment = (changes: Partial<Assessment>) => {
     if (user) void updateDoc(doc(db, 'assessments', assessmentId), changes);
+  };
+
+  const deleteAssessment = async () => {
+    if (!user || !window.confirm(`Permanently delete “${assessmentName}” and its linked tasks, notes, and resources?`)) return;
+    setDeleteError(null);
+    try {
+      const [taskSnapshot, resourceSnapshot, noteSnapshot] = await Promise.all([
+        getDocs(query(collection(db, 'tasks'), where('parentId', '==', assessmentId), where('ownerId', '==', user.uid))),
+        getDocs(query(collection(db, 'assessmentResources'), where('assessmentId', '==', assessmentId))),
+        getDocs(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId))),
+      ]);
+      if (taskSnapshot.size + resourceSnapshot.size + noteSnapshot.size + 2 > 500) throw new Error('This assessment has too many linked records to delete safely at once.');
+      await Promise.all(resourceSnapshot.docs.map(async (resource) => {
+        const storagePath = resource.data().storagePath as string | undefined;
+        if (storagePath) await deleteObject(ref(getAppStorage(), storagePath));
+      }));
+      const batch = writeBatch(db);
+      taskSnapshot.docs.forEach((task) => batch.delete(task.ref));
+      resourceSnapshot.docs.forEach((resource) => batch.delete(resource.ref));
+      noteSnapshot.docs.forEach((note) => batch.delete(note.ref));
+      if (collabCode.match(/^[A-Z]{5}$/)) batch.delete(doc(db, 'collaborationCodes', collabCode));
+      batch.delete(doc(db, 'assessments', assessmentId));
+      await batch.commit();
+      onBack();
+    } catch (error) {
+      console.error('Could not delete assessment.', error);
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete this assessment.');
+    }
   };
 
   // Copy Collaboration Code
@@ -223,7 +255,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   // Regenerate random 5 uppercase letters
   const handleRegenerateCode = () => {
     if (!user) {
-      const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       setCollabCode(Array.from({ length: 5 }, () => letters[Math.floor(Math.random() * letters.length)]).join(''));
       return;
     }
@@ -668,8 +700,12 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                 </span>
               ))}
             </div>
+            <button onClick={() => void deleteAssessment()} className="ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#8a4b53] hover:bg-[#fcecee]" title="Permanently delete assessment">
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </button>
           </div>
         </div>
+        {deleteError && <p className="mt-3 text-xs font-medium text-[#b35760]">{deleteError}</p>}
       </div>
 
       {/* =========================================================================

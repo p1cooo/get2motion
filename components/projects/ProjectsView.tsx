@@ -390,7 +390,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           <div className="flex items-center gap-2 mb-4">
             <div className="w-2.5 h-2.5 rounded-full bg-[#8fae92]" />
             <h2 className="text-base sm:text-lg font-bold text-[#43342a] tracking-tight">
-              Completed Projects
+              Archive
             </h2>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#ede8f5] text-[#6b578c]">
               {completedProjects.length} completed

@@ -10,6 +10,11 @@ export interface UserProfile {
   bannerUrl?: string | null;
   bannerPosition?: string | null;
   theme?: 'morning' | 'sunset' | 'night' | 'sakura' | 'forest' | 'cloudy';
+  cozyMedia?: {
+    mode: 'youtube' | 'image' | 'none';
+    youtubeUrl: string;
+    imageUrl: string;
+  };
   semesterConfig?: {
     semesterName: string;      // e.g. "August 2026"
     semesterStartDate: string; // e.g. "2026-09-01"

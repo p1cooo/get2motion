@@ -1,7 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Minimize2, Pause, Play, Maximize2 } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useAuth } from '../../lib/auth-context';
+import { db } from '../../lib/firebase';
 
 export interface CozyMediaSettings {
   mode: 'youtube' | 'image' | 'none';
@@ -29,15 +33,24 @@ const CozyMediaContext = createContext<CozyMediaContextValue | null>(null);
 const sendPlayerCommand = (frame: HTMLIFrameElement | null, func: string) => frame?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
 
 export const CozyMediaProvider: React.FC<React.PropsWithChildren<{ isHome: boolean }>> = ({ children, isHome }) => {
+  const { user, profile } = useAuth();
   const [settings, setSettings] = useState<CozyMediaSettings>(DEFAULT_SETTINGS);
   const [isHidden, setIsHidden] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
-    try { const saved = localStorage.getItem('pico_cozy_media'); if (saved) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) }); } catch { /* use default */ }
-  }, []);
+    if (profile?.cozyMedia) {
+      setSettings({ ...DEFAULT_SETTINGS, ...profile.cozyMedia });
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(`motion:cozy-media:${user?.uid || 'guest'}`);
+      setSettings(saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS);
+    } catch { setSettings(DEFAULT_SETTINGS); }
+  }, [profile?.cozyMedia, user?.uid]);
   const saveSettings = (next: CozyMediaSettings) => {
     setSettings(next);
-    try { localStorage.setItem('pico_cozy_media', JSON.stringify(next)); } catch { /* non-persistent browser */ }
+    try { localStorage.setItem(`motion:cozy-media:${user?.uid || 'guest'}`, JSON.stringify(next)); } catch { /* non-persistent browser */ }
+    if (user) void updateDoc(doc(db, 'users', user.uid), { cozyMedia: next }).catch((error) => console.error('Could not save media preference.', error));
   };
   const parsed = parseYouTubeUrl(settings.youtubeUrl);
   useEffect(() => { if (isHome) setIsHidden(false); }, [isHome]);
@@ -62,28 +75,16 @@ export const useCozyMedia = () => {
 const CozyMediaPlayer: React.FC<{ frameRef: React.RefObject<HTMLIFrameElement | null>; parsed: NonNullable<ReturnType<typeof parseYouTubeUrl>>; isHome: boolean }> = ({ frameRef, parsed, isHome }) => {
   const { play, pause, previous, next, isPlaylist, isHidden, setIsHidden } = useCozyMedia();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  const playerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    const place = () => {
-      setSlot(document.getElementById('cozy-media-player-slot'));
-    };
-    place();
-    const observer = new MutationObserver(place);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => { window.removeEventListener('resize', place); observer.disconnect(); };
+    setSlot(isHome ? document.getElementById('cozy-media-player-slot') : null);
   }, [isHome]);
-  useEffect(() => {
-    const player = playerRef.current;
-    const target = isHome ? slot : document.body;
-    if (player && target && player.parentElement !== target) target.appendChild(player);
-  }, [isHome, slot]);
   useEffect(() => () => {
     sendPlayerCommand(frameRef.current, 'stopVideo');
-    playerRef.current?.remove();
   }, [frameRef]);
+  const target = isHome ? slot : document.body;
   return <>
     {!isHome && isHidden && <button onClick={() => setIsHidden(false)} className="fixed bottom-4 right-4 z-40 rounded-full border border-[#ede2d2] bg-[#fffefb] p-3 text-[#786659] shadow-lg hover:bg-[#f6eee3]" title="Show media player" aria-label="Show media player"><Maximize2 className="w-4 h-4" /></button>}
-    <aside ref={playerRef} className={`z-40 overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl ${isHome ? 'w-full rounded-xl' : `fixed bottom-4 right-4 w-56 rounded-2xl ${isHidden ? 'invisible pointer-events-none' : ''}`}`} aria-label={isHome ? 'Cozy media player' : 'Cozy media mini-player'}>
+    {target && createPortal(<aside className={`z-40 overflow-hidden border border-[#ede2d2] bg-[#fffefb] shadow-xl ${isHome ? 'w-full rounded-xl' : `fixed bottom-4 right-4 w-56 rounded-2xl ${isHidden ? 'invisible pointer-events-none' : ''}`}`} aria-label={isHome ? 'Cozy media player' : 'Cozy media mini-player'}>
     <iframe ref={frameRef} src={`${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}enablejsapi=1&playsinline=1`} title="Cozy Media Stream" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" className="block w-full aspect-video border-0" />
     <div className={`${isHome && slot ? 'hidden' : 'flex'} items-center justify-center gap-2 p-1.5`}>
       <button onClick={previous} disabled={!isPlaylist} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3] disabled:opacity-35" title="Previous"><ChevronLeft className="w-4 h-4" /></button>
@@ -92,6 +93,6 @@ const CozyMediaPlayer: React.FC<{ frameRef: React.RefObject<HTMLIFrameElement | 
       <button onClick={next} disabled={!isPlaylist} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3] disabled:opacity-35" title="Next"><ChevronRight className="w-4 h-4" /></button>
       {!isHome && <button onClick={() => setIsHidden(true)} className="p-1.5 rounded-lg text-[#786659] hover:bg-[#f6eee3]" title="Hide player"><Minimize2 className="w-4 h-4" /></button>}
     </div>
-    </aside>
+    </aside>, target)}
   </>;
 };

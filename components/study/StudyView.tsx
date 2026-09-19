@@ -38,6 +38,7 @@ export const StudyView: React.FC<StudyViewProps> = ({
   const [newDate, setNewDate] = useState('');
   const [newWeight, setNewWeight] = useState('');
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -116,8 +117,10 @@ export const StudyView: React.FC<StudyViewProps> = ({
   };
 
   // Tests & Assignments arrays
-  const allTests = assessments.filter((a) => a.type === 'test');
-  const allAssignments = assessments.filter((a) => a.type === 'assignment');
+  const archivedAssessments = assessments.filter((a) => a.status.toLowerCase() === 'completed');
+  const activeAssessments = assessments.filter((a) => a.status.toLowerCase() !== 'completed');
+  const allTests = activeAssessments.filter((a) => a.type === 'test');
+  const allAssignments = activeAssessments.filter((a) => a.type === 'assignment');
 
   // Main page shows ONLY next 3 items per section
   const byDate = (a: Assessment, b: Assessment) => a.date.localeCompare(b.date);
@@ -184,8 +187,35 @@ export const StudyView: React.FC<StudyViewProps> = ({
             <Plus className="w-4 h-4" />
             <span>+ Add Assessment</span>
           </button>
+          <button
+            onClick={() => setShowArchive((open) => !open)}
+            className="rounded-full border border-[#ede2d2] bg-[#fffefb] px-4 py-2 text-xs font-semibold text-[#786659] hover:bg-[#f6eee3]"
+          >
+            {showArchive ? 'Hide Archive' : `Archive (${archivedAssessments.length})`}
+          </button>
         </div>
       </div>
+
+      {showArchive && (
+        <div className="mb-8 rounded-3xl border border-[#ede2d2] bg-[#fbf7f1] p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="h-2.5 w-2.5 rounded-full bg-[#8fae92]" />
+            <h2 className="text-base font-bold text-[#43342a]">Archive</h2>
+            <span className="rounded-full bg-[#e5efe5] px-2 py-0.5 text-xs font-semibold text-[#557859]">{archivedAssessments.length} completed</span>
+          </div>
+          {archivedAssessments.length ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {archivedAssessments.map((item) => (
+                <button key={item.id} onClick={() => onSelectAssessment(item.id, item)} className="rounded-2xl border border-[#ede2d2] bg-[#fffefb] p-4 text-left hover:border-[#dfd0be]">
+                  <div className="text-xs font-bold uppercase tracking-wide text-[#8c7a6e]">{item.courseCode} • {item.type}</div>
+                  <div className="mt-1 font-bold text-[#786659] line-through">{item.name}</div>
+                  <div className="mt-2 text-xs text-[#8c7a6e]">Completed • {item.date}</div>
+                </button>
+              ))}
+            </div>
+          ) : <p className="text-sm text-[#8c7a6e]">Completed assessments will appear here.</p>}
+        </div>
+      )}
 
       {/* =========================================================================
           SECTION 1: UPCOMING TESTS (Only 3 cards shown, badge displays TOTAL count)

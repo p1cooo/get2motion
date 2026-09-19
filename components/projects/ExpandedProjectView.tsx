@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, onSnapshot, query, runTransaction, updateDoc, where, writeBatch } from 'firebase/firestore';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -101,7 +101,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
         setIdeas(normalizeIdeas(project.ideas));
         setNotes(normalizeNotes(project.notes));
       }),
-      onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', projectId)), (snapshot) => {
+      onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', projectId), where('ownerId', '==', user.uid)), (snapshot) => {
         setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
       }),
     ];
@@ -110,6 +110,23 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
 
   const saveProject = (changes: Partial<Project>) => {
     if (user) void updateDoc(doc(db, 'projects', projectId), { ...changes, updatedAt: new Date().toISOString() });
+  };
+
+  const setProjectStatus = (nextStatus: ProjectStatus) => {
+    const section = nextStatus === 'Completed' ? 'completed' : nextStatus === 'Active' ? 'active' : 'someday';
+    setStatus(nextStatus);
+    saveProject({ status: nextStatus, section });
+  };
+
+  const deleteProject = async () => {
+    if (!user || !window.confirm(`Permanently delete “${projectName}” and its tasks?`)) return;
+    const projectRef = doc(db, 'projects', projectId);
+    const taskSnapshot = await getDocs(query(collection(db, 'tasks'), where('parentId', '==', projectId), where('ownerId', '==', user.uid)));
+    const batch = writeBatch(db);
+    taskSnapshot.docs.forEach((task) => batch.delete(task.ref));
+    batch.delete(projectRef);
+    await batch.commit();
+    onBack();
   };
 
   // Ideas and notes are embedded arrays. Read the current document inside a
@@ -295,8 +312,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
                       <button
                         key={s}
                         onClick={() => {
-                          setStatus(s);
-                          saveProject({ status: s });
+                          setProjectStatus(s);
                           setShowStatusDropdown(false);
                         }}
                         className={`px-3 py-1.5 rounded-xl text-left font-semibold cursor-pointer transition-colors ${
@@ -420,9 +436,12 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] text-[#9d8a7c]">
+          <div className="flex items-center gap-3 text-[11px] text-[#9d8a7c]">
             <Sparkles className="w-3.5 h-3.5 text-[#cfa361]" />
             <span>Personal Project • Pico</span>
+            <button onClick={() => void deleteProject()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#8a4b53] hover:bg-[#fcecee]" title="Permanently delete project">
+              <Trash2 className="w-3.5 h-3.5" /> Delete
+            </button>
           </div>
         </div>
       </div>

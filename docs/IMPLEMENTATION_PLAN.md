@@ -244,3 +244,19 @@ Never claim an item is complete unless verified.
 - [x] Prevent stale Project idea/note arrays from overwriting a newer browser's data by applying embedded-list changes in Firestore transactions.
 - [x] Ensure signed-in Work rescheduling writes the source `workItems` document rather than only changing visible React state.
 - [ ] Run the required signed-in two-browser Home, Study, Work, and Projects regression sequence with a disposable Firebase account.
+
+### Continuation stabilization audit — 19 Sep 2026
+
+- [x] Constrain owner-only Study and Project task listeners so deployed Firestore rules can authorize their queries.
+- [x] Replace collaboration-code candidate reads with collision-retry writes compatible with deployed rules.
+- [x] Persist Project archive section with completed status and add scoped permanent-delete controls for Projects and Assessments.
+- [x] Add URL-backed Assessment and Project detail refresh routing; Work route implementation awaits interactive selection verification.
+- [x] Make signed-in profile and Cozy Media settings Firestore-backed, with UID-scoped local fallback.
+- [x] Verify signed-in Study task create/complete/create/refresh, Study archive, Project archive, Project/Study detail refresh, Work create/refresh, and logout from Work.
+- [x] Sign into the same disposable account in a second independent browser context and run the full Home/Study/Work/Projects propagation and reverse-mutation regression.
+- [x] Confirm scoped permanent deletion of a disposable Assessment and its exact linked records.
+- [ ] Confirm scoped permanent deletion of a disposable Project and its exact linked records.
+- [x] Verify signed-in media preference propagation, non-Home player minimize/restore, and logout isolation across the two origin-isolated sessions.
+- [x] Verify direct selection and refresh of a signed-in Work detail route from the calendar.
+- [x] Verify signed-in Study journal create, inline edit, and refresh persistence.
+- [ ] Verify Firestore cross-user isolation using a second Firebase UID.

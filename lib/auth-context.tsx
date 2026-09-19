@@ -12,7 +12,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, waitForPendingWrites } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction, setDoc, updateDoc, waitForPendingWrites } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { UserProfile } from './types';
 
@@ -42,44 +42,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const loadingFallback = window.setTimeout(() => setLoading(false), 1500);
+    let unsubscribeProfile: (() => void) | undefined;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      unsubscribeProfile?.();
       setUser(currentUser);
+      setProfile(null);
       setSigningOut(false);
       // Never hold the whole application behind a networked profile read.
       setLoading(false);
       if (currentUser) {
-        void (async () => {
-          try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const snap = await getDoc(userDocRef);
-          if (snap.exists()) {
-            setProfile(snap.data() as UserProfile);
-          } else {
-            const initialProfile: UserProfile = {
-              uid: currentUser.uid,
-              displayName: currentUser.displayName || 'Pico',
-              email: currentUser.email || '',
-              avatarUrl: currentUser.photoURL || null,
-              semesterConfig: {
-                semesterName: 'August 2026',
-                semesterStartDate: '2026-09-01',
-              },
-              createdAt: new Date().toISOString(),
-            };
-            await setDoc(userDocRef, initialProfile);
-            setProfile(initialProfile);
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const initialProfile: UserProfile = {
+          uid: currentUser.uid,
+          displayName: currentUser.displayName || 'Pico',
+          email: currentUser.email || '',
+          avatarUrl: currentUser.photoURL || null,
+          semesterConfig: {
+            semesterName: 'August 2026',
+            semesterStartDate: '2026-09-01',
+          },
+          createdAt: new Date().toISOString(),
+        };
+        unsubscribeProfile = onSnapshot(userDocRef, (snapshot) => {
+          if (snapshot.exists()) {
+            setProfile(snapshot.data() as UserProfile);
+            return;
           }
-
-          } catch (err) {
-            console.error('Error fetching user profile:', err);
-          }
-        })();
+          void runTransaction(db, async (transaction) => {
+            if (!(await transaction.get(userDocRef)).exists()) transaction.set(userDocRef, initialProfile);
+          }).catch((err) => console.error('Error creating user profile:', err));
+        }, (err) => console.error('Error listening to user profile:', err));
       } else {
         setProfile(null);
       }
     });
 
-    return () => { window.clearTimeout(loadingFallback); unsubscribe(); };
+    return () => { window.clearTimeout(loadingFallback); unsubscribeProfile?.(); unsubscribe(); };
   }, []);
 
   const signInWithEmail = async (email: string, pass: string) => {
@@ -109,26 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
-    if (cred.user) {
-      const userDocRef = doc(db, 'users', cred.user.uid);
-      const snap = await getDoc(userDocRef);
-      if (!snap.exists()) {
-        const newProfile: UserProfile = {
-          uid: cred.user.uid,
-          displayName: cred.user.displayName || 'Pico',
-          email: cred.user.email || '',
-          avatarUrl: cred.user.photoURL || null,
-          semesterConfig: {
-            semesterName: 'August 2026',
-            semesterStartDate: '2026-09-01',
-          },
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(userDocRef, newProfile);
-        setProfile(newProfile);
-      }
-    }
+    await signInWithPopup(auth, provider);
   };
 
   const resetPassword = async (email: string) => {

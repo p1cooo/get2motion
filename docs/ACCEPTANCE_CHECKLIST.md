@@ -232,11 +232,27 @@ Check items only after implementation and verification.
 - [x] Settings gear beside the user name is removed; sign-out remains available.
 - [ ] Authenticated Firebase browser, refresh, and Vercel deployment verification (requires production access).
 
+## Continuation stabilization audit — 19 Sep 2026
+
+- [x] Signed-in Study task create, complete, later create, and refresh retain the same canonical records.
+- [x] Completed Study assessments leave active overview sections and appear in the persisted Archive.
+- [x] Completed Projects leave Active Projects and appear in the persisted Archive.
+- [x] Direct signed-in Study and Project detail URLs survive a browser refresh.
+- [x] Signed-in Work item creation survives a browser refresh.
+- [x] Logout from Work returns to the Motion authentication screen without a blank page.
+- [x] Same-account propagation and reverse mutations across two independent browser contexts.
+- [x] Scoped permanent deletion of an Assessment and all exact linked records.
+- [ ] Scoped permanent deletion of a Project and all exact linked records.
+- [x] Signed-in Work detail selection and direct-route refresh from the calendar.
+- [x] Signed-in Study journal create, inline edit, and refresh persistence.
+- [ ] Cross-user Firestore isolation with a separate Firebase UID.
+
 ## Persistence regression pass — 18 Sep 2026
 - [x] Study assessment task titles support inline edit and persist through the shared task record.
 - [x] Work day timeline matches entries by their exact persisted start time.
 - [x] Work detail subscribes to the selected owner-scoped item and displays its persisted title.
 - [x] Floating media can be hidden/restored and is cleaned up on logout.
+- [x] Signed-in media preferences propagate through the user profile to a second same-account origin.
 
 ## Persistence/editability regression pass — 19 Sep 2026
 - [x] Home task updates/deletes use the canonical Firestore document ID.

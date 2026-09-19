@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { ThemeProvider, useTheme } from '../lib/theme-context';
 import { CozyBanner } from '../components/CozyBanner';
@@ -16,24 +16,28 @@ import { AuthModal } from '../components/auth/AuthModal';
 import { CozyMediaProvider } from '../components/home/cozy-media-context';
 import { Assessment, Project } from '../lib/types';
 
-function getInitialTab(): ActiveTab {
-  if (window.location.pathname.startsWith('/study')) return 'study';
-  if (window.location.pathname.startsWith('/work')) return 'work';
-  if (window.location.pathname.startsWith('/projects')) return 'projects';
-  return 'home';
+type LocationState = { tab: ActiveTab; assessmentId: string | null; workItemId: string | null; workDate: string | null; projectId: string | null };
+
+function readLocation(): LocationState {
+  const path = window.location.pathname.split('/').filter(Boolean);
+  const id = path[2] ? decodeURIComponent(path[2]) : null;
+  if (path[0] === 'study') return { tab: 'study', assessmentId: path[1] === 'assessment' ? id : null, workItemId: null, workDate: null, projectId: null };
+  if (path[0] === 'work') return { tab: 'work', assessmentId: null, workItemId: path[1] === 'item' ? id : null, workDate: new URLSearchParams(window.location.search).get('date'), projectId: null };
+  if (path[0] === 'projects') return { tab: 'projects', assessmentId: null, workItemId: null, workDate: null, projectId: path[1] === 'project' ? id : null };
+  return { tab: 'home', assessmentId: null, workItemId: null, workDate: null, projectId: null };
 }
 
 function DashboardContent() {
   const { user, loading, signingOut, signupSuccess, dismissSignupSuccess } = useAuth();
   const { themeConfig } = useTheme();
-  const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => readLocation().tab);
 
   // Sub-view routing
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(() => readLocation().assessmentId);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState<string | null>(null);
-  const [selectedWorkDateStr, setSelectedWorkDateStr] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedWorkItemId, setSelectedWorkItemId] = useState<string | null>(() => readLocation().workItemId);
+  const [selectedWorkDateStr, setSelectedWorkDateStr] = useState<string | null>(() => readLocation().workDate);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => readLocation().projectId);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Modals
@@ -41,16 +45,30 @@ function DashboardContent() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  const applyLocation = () => {
+    const route = readLocation();
+    setActiveTab(route.tab);
+    setSelectedAssessmentId(route.assessmentId);
+    setSelectedAssessment(null);
+    setSelectedWorkItemId(route.workItemId);
+    setSelectedWorkDateStr(route.workDate);
+    setSelectedProjectId(route.projectId);
+    setSelectedProject(null);
+  };
+
+  useEffect(() => {
+    window.addEventListener('popstate', applyLocation);
+    return () => window.removeEventListener('popstate', applyLocation);
+  }, []);
+
+  const navigate = (url: string) => {
+    window.history.pushState({}, '', url);
+    applyLocation();
+  };
+
   // Tab switcher with sub-view resets
   const handleTabChange = (tab: ActiveTab) => {
-    window.history.pushState({}, '', tab === 'home' ? '/' : `/${tab}`);
-    setActiveTab(tab);
-    setSelectedAssessmentId(null);
-    setSelectedAssessment(null);
-    setSelectedWorkItemId(null);
-    setSelectedWorkDateStr(null);
-    setSelectedProjectId(null);
-    setSelectedProject(null);
+    navigate(tab === 'home' ? '/' : `/${tab}`);
   };
 
   if (loading) return <div className="min-h-screen bg-[#faf6ef] flex items-center justify-center text-sm font-semibold text-[#786659]">Opening Motion…</div>;
@@ -95,13 +113,13 @@ function DashboardContent() {
               assessmentId={selectedAssessmentId}
               assessment={selectedAssessment || undefined}
               onBack={() => {
-                setSelectedAssessmentId(null);
-                setSelectedAssessment(null);
+                navigate('/study');
               }}
             />
           ) : (
             <StudyView
               onSelectAssessment={(id, assessment) => {
+                window.history.pushState({}, '', `/study/assessment/${encodeURIComponent(id)}`);
                 setSelectedAssessmentId(id);
                 setSelectedAssessment(assessment || null);
               }}
@@ -115,13 +133,13 @@ function DashboardContent() {
               workItemId={selectedWorkItemId}
               dateStr={selectedWorkDateStr}
               onBack={() => {
-                setSelectedWorkItemId(null);
-                setSelectedWorkDateStr(null);
+                navigate('/work');
               }}
             />
           ) : (
             <WorkCalendarView
               onSelectOccurrence={(workItemId, dateStr) => {
+                window.history.pushState({}, '', `/work/item/${encodeURIComponent(workItemId)}?date=${encodeURIComponent(dateStr)}`);
                 setSelectedWorkItemId(workItemId);
                 setSelectedWorkDateStr(dateStr);
               }}
@@ -134,12 +152,12 @@ function DashboardContent() {
               projectId={selectedProjectId}
               project={selectedProject || undefined}
               onBack={() => {
-                setSelectedProjectId(null);
-                setSelectedProject(null);
+                navigate('/projects');
               }}
             />
           ) : (
             <ProjectsView onSelectProject={(id, project) => {
+              window.history.pushState({}, '', `/projects/project/${encodeURIComponent(id)}`);
               setSelectedProjectId(id);
               setSelectedProject(project || null);
             }} />
