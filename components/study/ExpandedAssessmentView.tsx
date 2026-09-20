@@ -36,6 +36,7 @@ import { db, getAppStorage } from '../../lib/firebase';
 import { createTask } from '../../lib/task-store';
 import { useAuth } from '../../lib/auth-context';
 import { Assessment, AssessmentResource, Task } from '../../lib/types';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 
 interface ExpandedAssessmentViewProps {
   assessmentId: string;
@@ -139,6 +140,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [activeAuthorId, setActiveAuthorId] = useState('demo-user-pico');
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const members = user
     ? Array.from(new Set([user.uid, ...memberIds])).map((id, index) => {
@@ -219,8 +222,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   };
 
   const deleteAssessment = async () => {
-    if (!user || !window.confirm(`Permanently delete “${assessmentName}” and its linked tasks, notes, and resources?`)) return;
+    if (!user) return;
     setDeleteError(null);
+    setIsDeleting(true);
     try {
       const [taskSnapshot, resourceSnapshot, noteSnapshot] = await Promise.all([
         getDocs(query(collection(db, 'tasks'), where('parentId', '==', assessmentId), where('ownerId', '==', user.uid))),
@@ -243,6 +247,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     } catch (error) {
       console.error('Could not delete assessment.', error);
       setDeleteError(error instanceof Error ? error.message : 'Could not delete this assessment.');
+      setShowDeleteConfirmation(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -711,13 +718,22 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                 </span>
               ))}
             </div>
-            <button onClick={() => void deleteAssessment()} className="ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#8a4b53] hover:bg-[#fcecee]" title="Permanently delete assessment">
+            <button onClick={() => setShowDeleteConfirmation(true)} className="ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#8a4b53] hover:bg-[#fcecee]" title="Permanently delete assessment">
               <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           </div>
         </div>
         {deleteError && <p className="mt-3 text-xs font-medium text-[#b35760]">{deleteError}</p>}
       </div>
+      {showDeleteConfirmation && (
+        <DeleteConfirmationModal
+          title="Delete assessment?"
+          description={`“${assessmentName}” and its linked tasks, notes, and resources will be permanently deleted.`}
+          isDeleting={isDeleting}
+          onCancel={() => setShowDeleteConfirmation(false)}
+          onConfirm={() => void deleteAssessment()}
+        />
+      )}
 
       {/* =========================================================================
           LOWER 2-COLUMN SECTION: TASKS + MANAGEABLE RESOURCES & NOTES JOURNAL

@@ -290,3 +290,14 @@ Do not use temporary generated-image URLs.
 | Work | `workItems` by `ownerId`; direct detail listens to `workItems/{id}` | `ownerId` is the Firebase UID; no browser fallback. | Creates, edits, and reschedules write the selected document; listener state restores a direct route after refresh. |
 | Projects, ideas, and notes | `projects` by `ownerId`; linked tasks use `tasks.parentId` plus `ownerId` | `ownerId` is the Firebase UID; ideas and notes are embedded in the Project document. | Live project snapshot is canonical; list edits use transactions to avoid stale-tab overwrite; Project deletion batches exact linked tasks. |
 | Collaboration codes | `collaborationCodes/{code}` and the parent Assessment | Code record carries `ownerId`; no browser fallback. | Generation retries an atomic create/update batch because deployed rules deny candidate-code reads. Secure client-side redemption remains intentionally disabled. |
+
+## Interaction regression continuation — 20 Sep 2026
+
+- Replaced the browser-native permanent-delete prompt with a shared, keyboard-accessible Motion confirmation modal. It is used by Assessment and Project detail screens, supports Escape cancellation, and keeps the detail visible if the Firestore operation fails.
+- **Verified:** deleting `QA delete assessment 20260920` via the new modal waited for its Firestore cleanup batch, navigated to Study, and remained absent after a page refresh. The unrelated `Cross browser study 20260919` record reappeared after its listener settled.
+- **Verified:** deleting `QA delete project 20260920` via the new modal waited for its Firestore cleanup batch, navigated to Projects & Ideas, and remained absent after a page refresh.
+- **Verified:** Work What Happened, Notes, and Prep each support Enter creation, inline edit, and refresh persistence on `Cross browser work 20260919`. Prep completion, undo, re-completion, and a second prep record all remained correct after refresh.
+- **Verified:** Project Ideas and Notes support Enter creation, inline edit, and refresh persistence on `Cross browser project 20260919`; embedded arrays are transaction-updated to avoid stale-tab overwrites.
+- **Verified:** a Study task title edit preserved its completion and All Team assignment after refresh.
+- **Verified:** URL resource attachment initially failed because Firestore rejects `storagePath: undefined`. URL records now omit that optional Storage-only field. A URL attachment persisted and rendered an open link after refresh.
+- **UNVERIFIED external harness blocker:** the in-app browser did not emit a file chooser for either its hidden file input or visible picker control, so no QA file was selected, uploaded to Storage, opened/downloaded, or deleted. No Storage rule change was made. Project resources have no existing UI or data feature and were not invented.

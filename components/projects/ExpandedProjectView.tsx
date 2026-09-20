@@ -22,6 +22,7 @@ import { Project, ProjectIdea, ProjectNote, Task } from '../../lib/types';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
 import { createTask } from '../../lib/task-store';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 
 interface ExpandedProjectViewProps {
   projectId: string;
@@ -88,6 +89,8 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -120,8 +123,9 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   };
 
   const deleteProject = async () => {
-    if (!user || !window.confirm(`Permanently delete “${projectName}” and its tasks?`)) return;
+    if (!user) return;
     setDeleteError(null);
+    setIsDeleting(true);
     try {
       const projectRef = doc(db, 'projects', projectId);
       const taskSnapshot = await getDocs(query(collection(db, 'tasks'), where('parentId', '==', projectId), where('ownerId', '==', user.uid)));
@@ -134,6 +138,9 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     } catch (error) {
       console.error('Could not delete project.', error);
       setDeleteError(error instanceof Error ? error.message : 'Could not delete this project.');
+      setShowDeleteConfirmation(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -447,13 +454,22 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
           <div className="flex items-center gap-3 text-[11px] text-[#9d8a7c]">
             <Sparkles className="w-3.5 h-3.5 text-[#cfa361]" />
             <span>Personal Project • Pico</span>
-            <button onClick={() => void deleteProject()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#8a4b53] hover:bg-[#fcecee]" title="Permanently delete project">
+            <button onClick={() => setShowDeleteConfirmation(true)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#8a4b53] hover:bg-[#fcecee]" title="Permanently delete project">
               <Trash2 className="w-3.5 h-3.5" /> Delete
             </button>
           </div>
         </div>
         {deleteError && <p className="mt-3 text-xs font-medium text-[#b35760]">{deleteError}</p>}
       </div>
+      {showDeleteConfirmation && (
+        <DeleteConfirmationModal
+          title="Delete project?"
+          description={`“${projectName}” and its linked tasks will be permanently deleted.`}
+          isDeleting={isDeleting}
+          onCancel={() => setShowDeleteConfirmation(false)}
+          onConfirm={() => void deleteProject()}
+        />
+      )}
 
       {/* =========================================================================
           3-COLUMN INTERACTIVE CONTENT: TASKS, IDEAS, AND NOTES

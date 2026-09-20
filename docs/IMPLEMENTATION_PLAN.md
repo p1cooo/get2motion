@@ -259,4 +259,12 @@ Never claim an item is complete unless verified.
 - [x] Verify signed-in media preference propagation, non-Home player minimize/restore, and logout isolation across the two origin-isolated sessions.
 - [x] Verify direct selection and refresh of a signed-in Work detail route from the calendar.
 - [x] Verify signed-in Study journal create, inline edit, and refresh persistence.
+- [x] Replace native Assessment/Project deletion prompts with a shared Motion confirmation modal and verify Escape cancellation.
+- [x] Verify scoped permanent deletion of `QA delete assessment 20260920` redirects to Study and remains absent after refresh.
+- [x] Verify scoped permanent deletion of `QA delete project 20260920` redirects to Projects & Ideas and remains absent after refresh.
+- [x] Verify Work What Happened, Notes, and Prep Enter creation, inline edit, completion lifecycle, and refresh persistence.
+- [x] Verify Project Idea and Note Enter creation, inline edit, and refresh persistence.
+- [x] Verify Study task inline edit preserves completion and assignee metadata after refresh.
+- [x] Fix and verify Study URL resource attachment persistence by omitting undefined Storage-only metadata.
+- [ ] Verify Study file picker, Firebase Storage upload, persisted file metadata, open/download, and deletion. Blocked by the in-app browser file chooser, which does not open for either picker control.
 - [ ] Verify Firestore cross-user isolation using a second Firebase UID.

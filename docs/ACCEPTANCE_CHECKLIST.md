@@ -157,14 +157,14 @@ Check items only after implementation and verification.
 - [ ] Past occurrences remain unchanged
 
 ## Work detail
-- [ ] Signed-in Work detail field/journal persistence (implemented; awaiting authenticated user verification)
+- [x] Signed-in Work detail field/journal persistence
 - [ ] Date editable
 - [ ] Start time editable
 - [ ] End time editable
 - [ ] Recurrence editable
-- [ ] What Happened quick-entry works
-- [ ] Next Lesson Notes quick-entry works
-- [ ] Prep/To-do quick-entry works
+- [x] What Happened quick-entry works
+- [x] Next Lesson Notes quick-entry works
+- [x] Prep/To-do quick-entry works
 - [ ] Back to Work Calendar consistent
 - [x] Detail title is selected-event-specific; chess-only Current Focus and rating UI are not presented
 - [x] Guest browser sanity check: a non-Joshua calendar event opens its own generic detail view
@@ -185,8 +185,8 @@ Check items only after implementation and verification.
 - [ ] Description editable
 - [ ] Target Date editable/optional
 - [ ] Next Actions quick-entry works
-- [ ] Ideas & Improvements quick-entry works
-- [ ] Notes & Progress quick-entry works
+- [x] Ideas & Improvements quick-entry works
+- [x] Notes & Progress quick-entry works
 - [ ] Project task checkbox works
 - [ ] Project task inline editing works
 - [ ] Delete task works
@@ -242,7 +242,7 @@ Check items only after implementation and verification.
 - [x] Logout from Work returns to the Motion authentication screen without a blank page.
 - [x] Same-account propagation and reverse mutations across two independent browser contexts.
 - [x] Scoped permanent deletion of an Assessment and all exact linked records.
-- [ ] Scoped permanent deletion of a Project and all exact linked records.
+- [x] Scoped permanent deletion of a Project and all exact linked records.
 - [x] Signed-in Work detail selection and direct-route refresh from the calendar.
 - [x] Signed-in Study journal create, inline edit, and refresh persistence.
 - [ ] Cross-user Firestore isolation with a separate Firebase UID.
