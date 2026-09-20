@@ -1,0 +1,1 @@
+Motion QA resource upload regression fixture.

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { arrayUnion, doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
 import {
   ArrowLeft,
   Calendar,
@@ -21,11 +21,19 @@ import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
 
 type PrepItem = { id: string; title: string; completed: boolean };
+type WorkTextEntry = { id: string; content: string };
 type WorkDetailData = CalendarEntryDemo & {
-  whatHappened?: string[];
-  nextLesson?: string[];
+  whatHappened?: Array<WorkTextEntry | string>;
+  nextLesson?: Array<WorkTextEntry | string>;
   todoPrep?: PrepItem[];
 };
+
+const makeId = (prefix: string) => crypto.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const normalizeTextEntries = (value: WorkDetailData['whatHappened'], prefix: string): WorkTextEntry[] =>
+  (value || []).flatMap((item, index) => {
+    if (typeof item === 'string') return item.trim() ? [{ id: `${prefix}-legacy-${index}`, content: item }] : [];
+    return item?.id && item.content?.trim() ? [{ id: item.id, content: item.content }] : [];
+  });
 
 interface ClassDetailViewProps {
   workItemId: string;
@@ -76,14 +84,20 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
   const [showRecurrenceMenu, setShowRecurrenceMenu] = useState(false);
 
   // 3 Note lists with blank-row quick-entry
-  const [whatHappened, setWhatHappened] = useState(diary.whatHappened);
+  const [whatHappened, setWhatHappened] = useState<WorkTextEntry[]>([]);
   const [blankHappened, setBlankHappened] = useState('');
+  const [editingHappenedId, setEditingHappenedId] = useState<string | null>(null);
+  const [editingHappenedText, setEditingHappenedText] = useState('');
 
-  const [nextLesson, setNextLesson] = useState(diary.nextLesson);
+  const [nextLesson, setNextLesson] = useState<WorkTextEntry[]>([]);
   const [blankNext, setBlankNext] = useState('');
+  const [editingNextId, setEditingNextId] = useState<string | null>(null);
+  const [editingNextText, setEditingNextText] = useState('');
 
   const [todoPrep, setTodoPrep] = useState(diary.todoPrep);
   const [blankPrep, setBlankPrep] = useState('');
+  const [editingPrepId, setEditingPrepId] = useState<string | null>(null);
+  const [editingPrepText, setEditingPrepText] = useState('');
 
   useEffect(() => {
     if (!entry) return;
@@ -92,8 +106,8 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     setStartTime(start);
     setEndTime(end);
     setRecurrence((entry.recurrenceRule as RecurrenceType) || 'Does not repeat');
-    setWhatHappened((entry as WorkDetailData).whatHappened || []);
-    setNextLesson((entry as WorkDetailData).nextLesson || []);
+    setWhatHappened(normalizeTextEntries((entry as WorkDetailData).whatHappened, 'happened'));
+    setNextLesson(normalizeTextEntries((entry as WorkDetailData).nextLesson, 'note'));
     setTodoPrep((entry as WorkDetailData).todoPrep || []);
   }, [entry]);
 
@@ -101,9 +115,9 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (user && entry) void updateDoc(doc(db, 'workItems', entry.id), changes);
   };
 
-  const addPrepItem = (item: PrepItem) => {
+  const updatePrepItems = (mutate: (current: PrepItem[]) => PrepItem[]) => {
     if (!user) {
-      setTodoPrep((current) => [...current, item]);
+      setTodoPrep(mutate);
       return;
     }
     void runTransaction(db, async (transaction) => {
@@ -111,22 +125,55 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
       const snapshot = await transaction.get(workItemRef);
       if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) return;
       const current = (snapshot.data() as WorkDetailData).todoPrep || [];
-      transaction.update(workItemRef, { todoPrep: [...current, item] });
+      transaction.update(workItemRef, { todoPrep: mutate(current) });
+    });
+  };
+
+  const updateTextEntries = (
+    field: 'whatHappened' | 'nextLesson',
+    prefix: string,
+    mutate: (current: WorkTextEntry[]) => WorkTextEntry[],
+  ) => {
+    const setLocal = field === 'whatHappened' ? setWhatHappened : setNextLesson;
+    if (!user) {
+      setLocal(mutate);
+      return;
+    }
+    void runTransaction(db, async (transaction) => {
+      const workItemRef = doc(db, 'workItems', workItemId);
+      const snapshot = await transaction.get(workItemRef);
+      if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) return;
+      const current = normalizeTextEntries((snapshot.data() as WorkDetailData)[field], prefix);
+      transaction.update(workItemRef, { [field]: mutate(current) });
     });
   };
 
   const handleTogglePrep = (id: string) => {
-    if (!user) {
-      setTodoPrep((prev) => prev.map((item) => item.id === id ? { ...item, completed: !item.completed } : item));
-      return;
-    }
-    void runTransaction(db, async (transaction) => {
-      const workItemRef = doc(db, 'workItems', workItemId);
-      const snapshot = await transaction.get(workItemRef);
-      if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) return;
-      const current = (snapshot.data() as WorkDetailData).todoPrep || [];
-      transaction.update(workItemRef, { todoPrep: current.map((item) => item.id === id ? { ...item, completed: !item.completed } : item) });
-    });
+    updatePrepItems((current) => current.map((item) => item.id === id ? { ...item, completed: !item.completed } : item));
+  };
+
+  const saveHappenedEntry = (id: string) => {
+    const content = editingHappenedText.trim();
+    updateTextEntries('whatHappened', 'happened', (current) => content
+      ? current.map((item) => item.id === id ? { ...item, content } : item)
+      : current.filter((item) => item.id !== id));
+    setEditingHappenedId(null);
+  };
+
+  const saveNextEntry = (id: string) => {
+    const content = editingNextText.trim();
+    updateTextEntries('nextLesson', 'note', (current) => content
+      ? current.map((item) => item.id === id ? { ...item, content } : item)
+      : current.filter((item) => item.id !== id));
+    setEditingNextId(null);
+  };
+
+  const savePrepItem = (id: string) => {
+    const title = editingPrepText.trim();
+    updatePrepItems((current) => title
+      ? current.map((item) => item.id === id ? { ...item, title } : item)
+      : current.filter((item) => item.id !== id));
+    setEditingPrepId(null);
   };
 
   // Blank row quick entry: What Happened
@@ -134,8 +181,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankHappened.trim()) return;
-      if (!user) setWhatHappened((current) => [...current, blankHappened.trim()]);
-      else saveEntry({ whatHappened: arrayUnion(blankHappened.trim()) });
+      updateTextEntries('whatHappened', 'happened', (current) => [...current, { id: makeId('happened'), content: blankHappened.trim() }]);
       setBlankHappened('');
     } else if (e.key === 'Escape') {
       setBlankHappened('');
@@ -147,8 +193,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankNext.trim()) return;
-      if (!user) setNextLesson((current) => [...current, blankNext.trim()]);
-      else saveEntry({ nextLesson: arrayUnion(blankNext.trim()) });
+      updateTextEntries('nextLesson', 'note', (current) => [...current, { id: makeId('note'), content: blankNext.trim() }]);
       setBlankNext('');
     } else if (e.key === 'Escape') {
       setBlankNext('');
@@ -160,7 +205,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankPrep.trim()) return;
-      addPrepItem({ id: crypto.randomUUID?.() || `prep-${Date.now()}`, title: blankPrep.trim(), completed: false });
+      updatePrepItems((current) => [...current, { id: makeId('prep'), title: blankPrep.trim(), completed: false }]);
       setBlankPrep('');
     } else if (e.key === 'Escape') {
       setBlankPrep('');
@@ -339,13 +384,42 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
           </div>
 
           <div className="flex flex-col divide-y divide-[#f7f0e6] max-h-[280px] overflow-y-auto pr-1">
-            {whatHappened.map((item, idx) => (
+            {whatHappened.map((item) => (
               <div
-                key={idx}
+                key={item.id}
                 className="py-2 text-xs sm:text-sm text-[#483a30] leading-relaxed flex items-start gap-2"
               >
                 <span className="text-[#8fae92] font-bold mt-0.5">•</span>
-                <span className="flex-1 break-words">{item}</span>
+                {editingHappenedId === item.id ? (
+                  <input
+                    autoFocus
+                    value={editingHappenedText}
+                    onChange={(event) => setEditingHappenedText(event.target.value)}
+                    onBlur={() => saveHappenedEntry(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        saveHappenedEntry(item.id);
+                      } else if (event.key === 'Escape') {
+                        setEditingHappenedId(null);
+                      }
+                    }}
+                    className="min-w-0 flex-1 rounded border border-[#d3c2af] bg-white px-1 py-0.5 text-xs sm:text-sm text-[#483a30] focus:outline-none focus:ring-1 focus:ring-[#966746]"
+                    aria-label="Edit what happened entry"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingHappenedId(item.id);
+                      setEditingHappenedText(item.content);
+                    }}
+                    className="min-w-0 flex-1 break-words bg-transparent p-0 text-left hover:underline"
+                    title="Click to edit"
+                  >
+                    {item.content}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -378,13 +452,42 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
           </div>
 
           <div className="flex flex-col divide-y divide-[#f7f0e6] max-h-[280px] overflow-y-auto pr-1">
-            {nextLesson.map((item, idx) => (
+            {nextLesson.map((item) => (
               <div
-                key={idx}
+                key={item.id}
                 className="py-2 text-xs sm:text-sm text-[#483a30] leading-relaxed flex items-start gap-2"
               >
                 <span className="text-[#df989f] font-bold mt-0.5">•</span>
-                <span className="flex-1 break-words">{item}</span>
+                {editingNextId === item.id ? (
+                  <input
+                    autoFocus
+                    value={editingNextText}
+                    onChange={(event) => setEditingNextText(event.target.value)}
+                    onBlur={() => saveNextEntry(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        saveNextEntry(item.id);
+                      } else if (event.key === 'Escape') {
+                        setEditingNextId(null);
+                      }
+                    }}
+                    className="min-w-0 flex-1 rounded border border-[#d3c2af] bg-white px-1 py-0.5 text-xs sm:text-sm text-[#483a30] focus:outline-none focus:ring-1 focus:ring-[#966746]"
+                    aria-label="Edit note entry"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingNextId(item.id);
+                      setEditingNextText(item.content);
+                    }}
+                    className="min-w-0 flex-1 break-words bg-transparent p-0 text-left hover:underline"
+                    title="Click to edit"
+                  >
+                    {item.content}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -432,16 +535,42 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
                     type="button"
                     onClick={() => handleTogglePrep(item.id)}
                     className="w-4.5 h-4.5 rounded-md border-2 border-[#d3c2af] group-hover:border-[#966746] bg-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                    aria-label={`${item.completed ? 'Mark incomplete' : 'Mark complete'}: ${item.title}`}
                   >
                     {item.completed && <Check className="w-3 h-3 text-[#8fae92]" />}
                   </button>
-                  <span
-                    className={`text-xs sm:text-sm font-medium ${
+                  {editingPrepId === item.id ? (
+                    <input
+                      autoFocus
+                      value={editingPrepText}
+                      onChange={(event) => setEditingPrepText(event.target.value)}
+                      onBlur={() => savePrepItem(item.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          savePrepItem(item.id);
+                        } else if (event.key === 'Escape') {
+                          setEditingPrepId(null);
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded border border-[#d3c2af] bg-white px-1 py-0.5 text-xs sm:text-sm text-[#483a30] focus:outline-none focus:ring-1 focus:ring-[#966746]"
+                      aria-label="Edit prep task"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingPrepId(item.id);
+                        setEditingPrepText(item.title);
+                      }}
+                      className={`min-w-0 flex-1 bg-transparent p-0 text-left text-xs sm:text-sm font-medium hover:underline ${
                       item.completed ? 'line-through text-[#a9998d]' : 'text-[#483a30]'
                     }`}
-                  >
-                    {item.title}
-                  </span>
+                      title="Click to edit"
+                    >
+                      {item.title}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

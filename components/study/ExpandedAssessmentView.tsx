@@ -129,6 +129,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [editingResourceTitle, setEditingResourceTitle] = useState('');
   const [selectedResourceFile, setSelectedResourceFile] = useState<File | null>(null);
+  const [resourceError, setResourceError] = useState<string | null>(null);
 
   // Journal Notes
   const [notes, setNotes] = useState<JournalEntry[]>([]);
@@ -388,31 +389,41 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newResourceTitle.trim()) return;
-
-    let url = newResourceUrl.trim() || '#';
-    let storagePath: string | undefined;
-    if (user && newResourceType === 'file' && selectedResourceFile) {
-      storagePath = `assessments/${assessmentId}/resources/${Date.now()}-${selectedResourceFile.name}`;
-      const fileRef = ref(getAppStorage(), storagePath);
-      await uploadBytes(fileRef, selectedResourceFile);
-      url = await getDownloadURL(fileRef);
+    if (newResourceType === 'file' && !selectedResourceFile) {
+      setResourceError('Choose a file before attaching it.');
+      return;
     }
-    const newRes: Omit<ResourceItem, 'id'> = {
-      title: newResourceTitle.trim(),
-      url,
-      type: newResourceType,
-      dateAdded: 'Today',
-      assessmentId,
-      storagePath,
-      createdAt: new Date().toISOString(),
-    };
 
-    if (user) await addDoc(collection(db, 'assessmentResources'), newRes);
-    else setResources((prev) => [...prev, { ...newRes, id: `res-${Date.now()}` }]);
-    setNewResourceTitle('');
-    setNewResourceUrl('');
-    setSelectedResourceFile(null);
-    setShowAddResourceModal(false);
+    setResourceError(null);
+    try {
+      let url = newResourceUrl.trim() || '#';
+      let storagePath: string | null = null;
+      if (user && newResourceType === 'file' && selectedResourceFile) {
+        storagePath = `assessments/${assessmentId}/resources/${Date.now()}-${selectedResourceFile.name}`;
+        const fileRef = ref(getAppStorage(), storagePath);
+        await uploadBytes(fileRef, selectedResourceFile);
+        url = await getDownloadURL(fileRef);
+      }
+      const newRes: Omit<ResourceItem, 'id'> = {
+        title: newResourceTitle.trim(),
+        url,
+        type: newResourceType,
+        dateAdded: 'Today',
+        assessmentId,
+        ...(storagePath ? { storagePath } : {}),
+        createdAt: new Date().toISOString(),
+      };
+
+      if (user) await addDoc(collection(db, 'assessmentResources'), newRes);
+      else setResources((prev) => [...prev, { ...newRes, id: `res-${Date.now()}` }]);
+      setNewResourceTitle('');
+      setNewResourceUrl('');
+      setSelectedResourceFile(null);
+      setShowAddResourceModal(false);
+    } catch (error) {
+      console.error('Could not attach resource.', error);
+      setResourceError(error instanceof Error ? error.message : 'Could not attach this resource.');
+    }
   };
 
   const handleRemoveResource = async (id: string) => {
@@ -747,6 +758,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                         type="button"
                         onClick={() => handleToggleTask(task.id)}
                         className="mt-0.5 w-5 h-5 rounded-md border-2 border-[#d3c2af] group-hover:border-[#966746] bg-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                        aria-label={`${task.completed ? 'Mark incomplete' : 'Mark complete'}: ${task.title}`}
                       >
                         {task.completed && <Check className="w-3.5 h-3.5 text-[#8fae92]" />}
                       </button>
@@ -1068,6 +1080,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                       Attach
                     </button>
                   </div>
+                  {resourceError && <p className="text-xs font-medium text-[#b35760]">{resourceError}</p>}
                 </form>
               </div>
             )}

@@ -87,6 +87,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   const [blankNoteText, setBlankNoteText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -120,13 +121,20 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
 
   const deleteProject = async () => {
     if (!user || !window.confirm(`Permanently delete “${projectName}” and its tasks?`)) return;
-    const projectRef = doc(db, 'projects', projectId);
-    const taskSnapshot = await getDocs(query(collection(db, 'tasks'), where('parentId', '==', projectId), where('ownerId', '==', user.uid)));
-    const batch = writeBatch(db);
-    taskSnapshot.docs.forEach((task) => batch.delete(task.ref));
-    batch.delete(projectRef);
-    await batch.commit();
-    onBack();
+    setDeleteError(null);
+    try {
+      const projectRef = doc(db, 'projects', projectId);
+      const taskSnapshot = await getDocs(query(collection(db, 'tasks'), where('parentId', '==', projectId), where('ownerId', '==', user.uid)));
+      if (taskSnapshot.size + 1 > 500) throw new Error('This project has too many tasks to delete at once.');
+      const batch = writeBatch(db);
+      taskSnapshot.docs.forEach((task) => batch.delete(task.ref));
+      batch.delete(projectRef);
+      await batch.commit();
+      onBack();
+    } catch (error) {
+      console.error('Could not delete project.', error);
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete this project.');
+    }
   };
 
   // Ideas and notes are embedded arrays. Read the current document inside a
@@ -444,6 +452,7 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
             </button>
           </div>
         </div>
+        {deleteError && <p className="mt-3 text-xs font-medium text-[#b35760]">{deleteError}</p>}
       </div>
 
       {/* =========================================================================
