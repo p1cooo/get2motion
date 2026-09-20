@@ -13,7 +13,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { deleteObject, ref } from 'firebase/storage';
 import {
   ArrowLeft,
   Calendar,
@@ -46,8 +46,7 @@ interface ExpandedAssessmentViewProps {
 
 type AssessmentStatus = 'Upcoming' | 'In Progress' | 'Completed';
 
-interface ResourceItem extends Omit<AssessmentResource, 'type'> {
-  type: 'url' | 'file' | 'link' | 'document';
+interface ResourceItem extends AssessmentResource {
   dateAdded?: string;
 }
 
@@ -126,11 +125,11 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const [showAddResourceModal, setShowAddResourceModal] = useState(false);
   const [newResourceTitle, setNewResourceTitle] = useState('');
   const [newResourceUrl, setNewResourceUrl] = useState('');
-  const [newResourceType, setNewResourceType] = useState<'url' | 'file'>('url');
   const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
   const [editingResourceTitle, setEditingResourceTitle] = useState('');
-  const [selectedResourceFile, setSelectedResourceFile] = useState<File | null>(null);
+  const [editingResourceUrl, setEditingResourceUrl] = useState('');
   const [resourceError, setResourceError] = useState<string | null>(null);
+  const [removingResourceId, setRemovingResourceId] = useState<string | null>(null);
 
   // Journal Notes
   const [notes, setNotes] = useState<JournalEntry[]>([]);
@@ -393,71 +392,90 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   };
 
   // Resources Management
+  const describeResourceError = (stage: string, error: unknown) => {
+    const firebaseError = error as { code?: unknown; message?: unknown };
+    const code = typeof firebaseError?.code === 'string' ? ` (${firebaseError.code})` : '';
+    const message = error instanceof Error ? error.message : String(error);
+    return `${stage} failed${code}: ${message}`;
+  };
+
   const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newResourceTitle.trim()) return;
-    if (newResourceType === 'file' && !selectedResourceFile) {
-      setResourceError('Choose a file before attaching it.');
+    const title = newResourceTitle.trim();
+    const url = newResourceUrl.trim();
+    if (!title || !url) return;
+    if (!user) {
+      setResourceError('Sign in is required to attach a resource.');
       return;
     }
 
     setResourceError(null);
     try {
-      let url = newResourceUrl.trim() || '#';
-      let storagePath: string | null = null;
-      if (user && newResourceType === 'file' && selectedResourceFile) {
-        storagePath = `assessments/${assessmentId}/resources/${Date.now()}-${selectedResourceFile.name}`;
-        const fileRef = ref(getAppStorage(), storagePath);
-        await uploadBytes(fileRef, selectedResourceFile);
-        url = await getDownloadURL(fileRef);
-      }
       const newRes: Omit<ResourceItem, 'id'> = {
-        title: newResourceTitle.trim(),
+        title,
         url,
-        type: newResourceType,
+        type: 'link',
         dateAdded: 'Today',
         assessmentId,
-        ...(storagePath ? { storagePath } : {}),
         createdAt: new Date().toISOString(),
       };
-
-      if (user) await addDoc(collection(db, 'assessmentResources'), newRes);
-      else setResources((prev) => [...prev, { ...newRes, id: `res-${Date.now()}` }]);
+      await addDoc(collection(db, 'assessmentResources'), newRes);
       setNewResourceTitle('');
       setNewResourceUrl('');
-      setSelectedResourceFile(null);
       setShowAddResourceModal(false);
     } catch (error) {
-      console.error('Could not attach resource.', error);
-      setResourceError(error instanceof Error ? error.message : 'Could not attach this resource.');
+      console.error('Assessment resource metadata write failed:', {
+        assessmentId,
+        userId: user.uid,
+        error,
+      });
+      setResourceError(describeResourceError('Could not attach resource', error));
     }
   };
 
   const handleRemoveResource = async (id: string) => {
     const resource = resources.find((item) => item.id === id);
-    if (user) {
-      if (resource?.storagePath) await deleteObject(ref(getAppStorage(), resource.storagePath));
+    if (!user) {
+      setResources((prev) => prev.filter((r) => r.id !== id));
+      return;
+    }
+    if (!resource || removingResourceId) return;
+
+    setResourceError(null);
+    setRemovingResourceId(id);
+    try {
+      if (resource.storagePath) {
+        await deleteObject(ref(getAppStorage(), resource.storagePath));
+      }
       await deleteDoc(doc(db, 'assessmentResources', id));
-    } else setResources((prev) => prev.filter((r) => r.id !== id));
+    } catch (error) {
+      console.error(
+        'Assessment resource deletion failed:',
+        JSON.stringify({
+          assessmentId,
+          resourceId: id,
+          storagePath: resource.storagePath ?? null,
+          userId: user.uid,
+          errorCode: (error as { code?: unknown })?.code ?? null,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        })
+      );
+      setResourceError(describeResourceError(resource.storagePath ? 'Storage deletion' : 'Firestore metadata deletion', error));
+    } finally {
+      setRemovingResourceId(null);
+    }
   };
 
-  const handleSaveResourceTitle = (id: string) => {
-    if (editingResourceTitle.trim()) {
+  const handleSaveResource = (id: string) => {
+    const title = editingResourceTitle.trim();
+    const url = editingResourceUrl.trim();
+    if (title && url) {
       setResources((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, title: editingResourceTitle.trim() } : r))
+        prev.map((r) => (r.id === id ? { ...r, title, url } : r))
       );
-      if (user) void updateDoc(doc(db, 'assessmentResources', id), { title: editingResourceTitle.trim() });
+      if (user) void updateDoc(doc(db, 'assessmentResources', id), { title, url });
     }
     setEditingResourceId(null);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setNewResourceTitle(file.name);
-    setSelectedResourceFile(file);
-    setNewResourceUrl(user ? '' : URL.createObjectURL(file));
-    setNewResourceType('file');
   };
 
   return (
@@ -927,7 +945,10 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
               </div>
 
               <button
-                onClick={() => setShowAddResourceModal(true)}
+                onClick={() => {
+                  setResourceError(null);
+                  setShowAddResourceModal(true);
+                }}
                 id="attach-resource-btn"
                 className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fbf7f1] hover:bg-[#f6eee3] border border-[#ede2d2] text-xs font-bold text-[#786659] hover:text-[#43342a] transition-colors cursor-pointer shadow-2xs"
               >
@@ -951,29 +972,44 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <FileText className="w-4 h-4 text-[#9b6f1e] shrink-0" />
                       {editingResourceId === res.id ? (
-                        <input
-                          type="text"
-                          value={editingResourceTitle}
-                          onChange={(e) => setEditingResourceTitle(e.target.value)}
-                          onBlur={() => handleSaveResourceTitle(res.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveResourceTitle(res.id);
-                            if (e.key === 'Escape') setEditingResourceId(null);
+                        <div
+                          className="flex min-w-0 flex-1 flex-col gap-1"
+                          onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) handleSaveResource(res.id);
                           }}
-                          autoFocus
-                          className="text-xs font-semibold bg-white border border-[#966746] rounded px-1.5 py-0.5 flex-1"
-                        />
+                        >
+                          <input
+                            type="text"
+                            value={editingResourceTitle}
+                            onChange={(e) => setEditingResourceTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveResource(res.id);
+                              if (e.key === 'Escape') setEditingResourceId(null);
+                            }}
+                            autoFocus
+                            className="text-xs font-semibold bg-white border border-[#966746] rounded px-1.5 py-0.5"
+                          />
+                          <input
+                            type="url"
+                            value={editingResourceUrl}
+                            onChange={(e) => setEditingResourceUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveResource(res.id);
+                              if (e.key === 'Escape') setEditingResourceId(null);
+                            }}
+                            className="text-xs bg-white border border-[#ded2c0] rounded px-1.5 py-0.5"
+                          />
+                        </div>
                       ) : (
-                        <span
-                          onClick={() => {
-                            setEditingResourceId(res.id);
-                            setEditingResourceTitle(res.title);
-                          }}
-                          className="text-xs font-semibold text-[#483a30] hover:text-[#966746] truncate cursor-text"
-                          title="Click to rename"
+                        <a
+                          href={res.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-semibold text-[#483a30] hover:text-[#966746] hover:underline truncate cursor-pointer"
+                          title="Open resource in a new tab"
                         >
                           {res.title}
-                        </span>
+                        </a>
                       )}
                     </div>
 
@@ -991,6 +1027,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                         onClick={() => {
                           setEditingResourceId(res.id);
                           setEditingResourceTitle(res.title);
+                          setEditingResourceUrl(res.url);
                         }}
                         className="p-1 rounded-lg text-[#8c7a6e] hover:text-[#43342a] hover:bg-[#f6eee3] transition-colors"
                         title="Rename"
@@ -999,6 +1036,8 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                       </button>
                       <button
                         onClick={() => handleRemoveResource(res.id)}
+                        disabled={removingResourceId === res.id}
+                        aria-label={`Delete resource: ${res.title}`}
                         className="p-1 rounded-lg text-[#8c7a6e] hover:text-[#8a4b53] hover:bg-[#fcecee] transition-colors"
                         title="Delete resource"
                       >
@@ -1009,6 +1048,9 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                 ))
               )}
             </div>
+            {resourceError && !showAddResourceModal && (
+              <p className="mt-2 text-xs font-medium text-[#b35760]" role="alert">{resourceError}</p>
+            )}
 
             {/* Add Resource Modal / Form */}
             {showAddResourceModal && (
@@ -1023,63 +1065,24 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                   </button>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewResourceType('url')}
-                    className={`flex-1 py-1 rounded-lg text-xs font-semibold ${
-                      newResourceType === 'url'
-                        ? 'bg-[#966746] text-white'
-                        : 'bg-white text-[#786659] border border-[#ede2d2]'
-                    }`}
-                  >
-                    Web URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewResourceType('file')}
-                    className={`flex-1 py-1 rounded-lg text-xs font-semibold ${
-                      newResourceType === 'file'
-                        ? 'bg-[#966746] text-white'
-                        : 'bg-white text-[#786659] border border-[#ede2d2]'
-                    }`}
-                  >
-                    File / Document
-                  </button>
-                </div>
-
                 <form onSubmit={handleAddResource} className="flex flex-col gap-2">
                   <input
                     type="text"
-                    placeholder="Resource Title (e.g. Slide Deck, Rubric PDF)"
+                    placeholder="Resource name (e.g. OOD Assignment Brief)"
                     value={newResourceTitle}
                     onChange={(e) => setNewResourceTitle(e.target.value)}
                     required
                     className="px-2.5 py-1.5 text-xs rounded-lg bg-white border border-[#ded2c0] text-[#43342a]"
                   />
 
-                  {newResourceType === 'url' ? (
-                    <input
-                      type="url"
-                      placeholder="https://drive.google.com/..."
-                      value={newResourceUrl}
-                      onChange={(e) => setNewResourceUrl(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs rounded-lg bg-white border border-[#ded2c0] text-[#43342a]"
-                    />
-                  ) : (
-                    <div>
-                      <label
-                        className="w-full py-2 px-3 rounded-lg bg-white hover:bg-[#faf5ed] border border-[#ded2c0] text-xs font-semibold text-[#786659] text-center cursor-pointer block"
-                      >
-                        <span>Choose File (PDF, DOCX, ZIP, Images)</span>
-                        <input
-                          type="file"
-                          onChange={handleFileUpload}
-                          className="sr-only"
-                        />
-                      </label>
-                    </div>
-                  )}
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/..."
+                    value={newResourceUrl}
+                    onChange={(e) => setNewResourceUrl(e.target.value)}
+                    required
+                    className="px-2.5 py-1.5 text-xs rounded-lg bg-white border border-[#ded2c0] text-[#43342a]"
+                  />
 
                   <div className="flex justify-end gap-2 pt-1">
                     <button
@@ -1096,7 +1099,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                       Attach
                     </button>
                   </div>
-                  {resourceError && <p className="text-xs font-medium text-[#b35760]">{resourceError}</p>}
+                  {resourceError && <p className="text-xs font-medium text-[#b35760]" role="alert">{resourceError}</p>}
                 </form>
               </div>
             )}

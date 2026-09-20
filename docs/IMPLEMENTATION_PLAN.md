@@ -182,7 +182,7 @@ Only after core UI/logic is stable.
 - [x] Friendly Firebase Auth error mapping
 - [ ] Firestore owner isolation
 - [ ] Collaboration security
-- [x] Firebase Storage used by signed-in Assessment resource uploads; deployment rules still require project-specific validation
+- [x] Keep Firebase Storage available only for secure cleanup of legacy Study resources that already contain a Storage path.
 - [ ] Demo Mode still works
 
 ## Stage 7 — Regression / production readiness
@@ -265,6 +265,6 @@ Never claim an item is complete unless verified.
 - [x] Verify Work What Happened, Notes, and Prep Enter creation, inline edit, completion lifecycle, and refresh persistence.
 - [x] Verify Project Idea and Note Enter creation, inline edit, and refresh persistence.
 - [x] Verify Study task inline edit preserves completion and assignee metadata after refresh.
-- [x] Fix and verify Study URL resource attachment persistence by omitting undefined Storage-only metadata.
-- [ ] Verify Study file picker, Firebase Storage upload, persisted file metadata, open/download, and deletion. Blocked by the in-app browser file chooser, which does not open for either picker control.
+- [x] Keep Study resources link-only; new records persist external URL metadata without a Storage upload path.
+- [x] Verify Study URL add, refresh, open, pencil-only edit, and deletion against Firestore.
 - [ ] Verify Firestore cross-user isolation using a second Firebase UID.

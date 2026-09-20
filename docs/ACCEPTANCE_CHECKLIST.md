@@ -245,6 +245,7 @@ Check items only after implementation and verification.
 - [x] Scoped permanent deletion of a Project and all exact linked records.
 - [x] Signed-in Work detail selection and direct-route refresh from the calendar.
 - [x] Signed-in Study journal create, inline edit, and refresh persistence.
+- [x] Study link-only resource add, refresh, open, pencil-only edit, and deletion against Firestore.
 - [ ] Cross-user Firestore isolation with a separate Firebase UID.
 
 ## Persistence regression pass — 18 Sep 2026

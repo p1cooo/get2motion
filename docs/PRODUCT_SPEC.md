@@ -209,9 +209,9 @@ Exact lookup only; collaboration must be assessment-scoped.
 - never show generic `Logged by team`
 
 ## Resources
-Support URL and file resources.
+Support external HTTPS resources such as Google Drive, Docs, Sheets, OneDrive, Dropbox, and ordinary websites.
 Actions: Add, Open, Rename, Remove/Delete.
-Use Firebase Storage for real uploaded files; demo mode may mock.
+Resources are stored as Firestore link metadata; Motion does not upload files.
 
 ---
 
