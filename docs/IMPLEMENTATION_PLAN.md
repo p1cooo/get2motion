@@ -267,4 +267,5 @@ Never claim an item is complete unless verified.
 - [x] Verify Study task inline edit preserves completion and assignee metadata after refresh.
 - [x] Keep Study resources link-only; new records persist external URL metadata without a Storage upload path.
 - [x] Verify Study URL add, refresh, open, pencil-only edit, and deletion against Firestore.
+- [x] Fix and live-verify Assessment deletion when legacy Storage cleanup fails or stalls: linked QA records are removed, listener teardown errors are suppressed only during the final commit, and the user is redirected to Study (21 Sep 2026).
 - [ ] Verify Firestore cross-user isolation using a second Firebase UID.

@@ -39,6 +39,19 @@ export const StudyView: React.FC<StudyViewProps> = ({
   const [newWeight, setNewWeight] = useState('');
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [showArchive, setShowArchive] = useState(false);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const notice = sessionStorage.getItem('motion:study-delete-notice');
+      if (notice) {
+        setDeleteNotice(notice);
+        sessionStorage.removeItem('motion:study-delete-notice');
+      }
+    } catch {
+      // Storage-cleanup diagnostics remain available in the browser console.
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -195,6 +208,13 @@ export const StudyView: React.FC<StudyViewProps> = ({
           </button>
         </div>
       </div>
+
+      {deleteNotice && (
+        <div role="status" className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-[#e7d6b9] bg-[#fff7e8] px-4 py-3 text-sm font-medium text-[#786659]">
+          <span>{deleteNotice}</span>
+          <button onClick={() => setDeleteNotice(null)} className="text-[#966746] hover:text-[#7e5335]" aria-label="Dismiss deletion notice">×</button>
+        </div>
+      )}
 
       {showArchive && (
         <div className="mb-8 rounded-3xl border border-[#ede2d2] bg-[#fbf7f1] p-5">

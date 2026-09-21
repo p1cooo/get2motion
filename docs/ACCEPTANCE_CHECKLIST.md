@@ -246,6 +246,7 @@ Check items only after implementation and verification.
 - [x] Signed-in Work detail selection and direct-route refresh from the calendar.
 - [x] Signed-in Study journal create, inline edit, and refresh persistence.
 - [x] Study link-only resource add, refresh, open, pencil-only edit, and deletion against Firestore.
+- [x] Study assessment deletion tolerates missing or slow legacy Storage files, removes linked QA records, redirects to Study, and stays deleted after refresh (21 Sep 2026).
 - [ ] Cross-user Firestore isolation with a separate Firebase UID.
 
 ## Persistence regression pass — 18 Sep 2026

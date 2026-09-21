@@ -46,6 +46,31 @@ interface ExpandedAssessmentViewProps {
 
 type AssessmentStatus = 'Upcoming' | 'In Progress' | 'Completed';
 
+const STORAGE_DELETE_TIMEOUT_MS = 10_000;
+
+const withTimeout = <T,>(operation: Promise<T>, timeoutMessage: string): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error(timeoutMessage)), STORAGE_DELETE_TIMEOUT_MS);
+    operation.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+
+const firebaseErrorDetails = (error: unknown) => {
+  const firebaseError = error as { code?: unknown; message?: unknown };
+  return {
+    code: typeof firebaseError?.code === 'string' ? firebaseError.code : null,
+    message: error instanceof Error ? error.message : String(error),
+  };
+};
+
 interface ResourceItem extends AssessmentResource {
   dateAdded?: string;
 }
@@ -67,6 +92,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const initializedCodeFor = useRef<string | null>(null);
+  const committingDeletion = useRef(false);
   const initialAssessment = selectedAssessment ?? {
     id: assessmentId,
     ownerId: user?.uid || 'guest',
@@ -202,16 +228,24 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
           initializedCodeFor.current = assessmentId;
           void persistNewCode(assessment.collaborationCode);
         }
-      }, (error) => console.error('Assessment listener failed.', error)),
+      }, (error) => {
+        if (!committingDeletion.current) console.error('Assessment listener failed.', error);
+      }),
       onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', assessmentId), where('ownerId', '==', user.uid)), (snapshot) => {
         setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
-      }, (error) => console.error('Assessment task listener failed.', error)),
+      }, (error) => {
+        if (!committingDeletion.current) console.error('Assessment task listener failed.', error);
+      }),
       onSnapshot(query(collection(db, 'assessmentResources'), where('assessmentId', '==', assessmentId)), (snapshot) => {
         setResources(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as ResourceItem));
-      }, (error) => console.error('Assessment resource listener failed.', error)),
+      }, (error) => {
+        if (!committingDeletion.current) console.error('Assessment resource listener failed.', error);
+      }),
       onSnapshot(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId)), (snapshot) => {
         setNotes(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as JournalEntry).sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
-      }, (error) => console.error('Assessment note listener failed.', error)),
+      }, (error) => {
+        if (!committingDeletion.current) console.error('Assessment note listener failed.', error);
+      }),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [assessmentId, user]);
@@ -224,6 +258,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     if (!user) return;
     setDeleteError(null);
     setIsDeleting(true);
+    let stage = 'loading linked records';
     try {
       const [taskSnapshot, resourceSnapshot, noteSnapshot] = await Promise.all([
         getDocs(query(collection(db, 'tasks'), where('parentId', '==', assessmentId), where('ownerId', '==', user.uid))),
@@ -231,10 +266,35 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
         getDocs(query(collection(db, 'assessmentNotes'), where('assessmentId', '==', assessmentId))),
       ]);
       if (taskSnapshot.size + resourceSnapshot.size + noteSnapshot.size + 2 > 500) throw new Error('This assessment has too many linked records to delete safely at once.');
-      await Promise.all(resourceSnapshot.docs.map(async (resource) => {
-        const storagePath = resource.data().storagePath as string | undefined;
-        if (storagePath) await deleteObject(ref(getAppStorage(), storagePath));
+
+      stage = 'cleaning up legacy Storage resources';
+      const storageCleanupFailures = await Promise.all(resourceSnapshot.docs.map(async (resource) => {
+        const storagePath = resource.data().storagePath;
+        if (typeof storagePath !== 'string' || !storagePath) return false;
+
+        try {
+          await withTimeout(
+            deleteObject(ref(getAppStorage(), storagePath)),
+            `Storage deletion timed out after ${STORAGE_DELETE_TIMEOUT_MS / 1000} seconds.`
+          );
+          return false;
+        } catch (error) {
+          // Storage resources were made link-only. Legacy paths can therefore point at
+          // files that were already removed; they must never block the Firestore cascade.
+          console.warn('Assessment deletion skipped a legacy Storage cleanup item.', {
+            stage,
+            assessmentId,
+            resourceId: resource.id,
+            storagePath,
+            userId: user.uid,
+            ...firebaseErrorDetails(error),
+          });
+          return true;
+        }
       }));
+
+      stage = 'committing the Firestore deletion';
+      committingDeletion.current = true;
       const batch = writeBatch(db);
       taskSnapshot.docs.forEach((task) => batch.delete(task.ref));
       resourceSnapshot.docs.forEach((resource) => batch.delete(resource.ref));
@@ -242,10 +302,28 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       if (collabCode.match(/^[A-Z]{5}$/)) batch.delete(doc(db, 'collaborationCodes', collabCode));
       batch.delete(doc(db, 'assessments', assessmentId));
       await batch.commit();
+      const storageCleanupFailureCount = storageCleanupFailures.filter(Boolean).length;
+      if (storageCleanupFailureCount) {
+        try {
+          sessionStorage.setItem(
+            'motion:study-delete-notice',
+            `Assessment deleted. ${storageCleanupFailureCount} legacy attachment${storageCleanupFailureCount === 1 ? '' : 's'} could not be removed from Storage.`
+          );
+        } catch {
+          // The detailed diagnostic has already been logged above.
+        }
+      }
       onBack();
     } catch (error) {
-      console.error('Could not delete assessment.', error);
-      setDeleteError(error instanceof Error ? error.message : 'Could not delete this assessment.');
+      committingDeletion.current = false;
+      const details = firebaseErrorDetails(error);
+      console.error('Assessment deletion failed.', {
+        stage,
+        assessmentId,
+        userId: user.uid,
+        ...details,
+      });
+      setDeleteError(`Could not delete this assessment while ${stage}. Please check your connection and try again.`);
       setShowDeleteConfirmation(false);
     } finally {
       setIsDeleting(false);
