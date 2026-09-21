@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { collection, deleteDoc, doc, getDocs, onSnapshot, query, runTransaction, updateDoc, where, writeBatch } from 'firebase/firestore';
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Project, ProjectIdea, ProjectNote, Task } from '../../lib/types';
 import { db } from '../../lib/firebase';
+import { createLocalDeleteFinalizer, type LocalDeleteFinalizer } from '../../lib/local-delete-finalizer';
 import { useAuth } from '../../lib/auth-context';
 import { createTask } from '../../lib/task-store';
 import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
@@ -43,6 +44,8 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
   onBack,
 }) => {
   const { user, profile } = useAuth();
+  const deleteFinalizer = useRef<LocalDeleteFinalizer | null>(null);
+  const committingDeletion = useRef(false);
   const initialProject = selectedProject ?? {
     id: projectId,
     ownerId: 'guest',
@@ -96,7 +99,10 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (!user) return;
     const unsubscribers = [
       onSnapshot(doc(db, 'projects', projectId), (snapshot) => {
-        if (!snapshot.exists()) return;
+        if (!snapshot.exists()) {
+          deleteFinalizer.current?.markLocalDeleteApplied();
+          return;
+        }
         const project = { ...snapshot.data(), id: snapshot.id } as Project;
         setProjectName(project.name);
         setDescription(project.description);
@@ -104,9 +110,13 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
         setTargetDate(project.targetDate || null);
         setIdeas(normalizeIdeas(project.ideas));
         setNotes(normalizeNotes(project.notes));
+      }, (error) => {
+        if (!committingDeletion.current) console.error('Project listener failed.', error);
       }),
       onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', projectId), where('ownerId', '==', user.uid)), (snapshot) => {
         setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
+      }, (error) => {
+        if (!committingDeletion.current) console.error('Project task listener failed.', error);
       }),
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -133,14 +143,17 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
       const batch = writeBatch(db);
       taskSnapshot.docs.forEach((task) => batch.delete(task.ref));
       batch.delete(projectRef);
-      await batch.commit();
-      onBack();
+      committingDeletion.current = true;
+      const finalizer = createLocalDeleteFinalizer(onBack);
+      deleteFinalizer.current = finalizer;
+      await finalizer.waitForCommit(batch.commit());
     } catch (error) {
+      committingDeletion.current = false;
       console.error('Could not delete project.', error);
       setDeleteError(error instanceof Error ? error.message : 'Could not delete this project.');
       setShowDeleteConfirmation(false);
     } finally {
-      setIsDeleting(false);
+      if (!deleteFinalizer.current?.didNavigate()) setIsDeleting(false);
     }
   };
 

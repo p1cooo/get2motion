@@ -33,6 +33,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { db, getAppStorage } from '../../lib/firebase';
+import { createLocalDeleteFinalizer, type LocalDeleteFinalizer } from '../../lib/local-delete-finalizer';
 import { createTask } from '../../lib/task-store';
 import { useAuth } from '../../lib/auth-context';
 import { Assessment, AssessmentResource, Task } from '../../lib/types';
@@ -93,6 +94,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
   const { user, profile } = useAuth();
   const initializedCodeFor = useRef<string | null>(null);
   const committingDeletion = useRef(false);
+  const deleteFinalizer = useRef<LocalDeleteFinalizer | null>(null);
   const initialAssessment = selectedAssessment ?? {
     id: assessmentId,
     ownerId: user?.uid || 'guest',
@@ -214,7 +216,10 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     if (!user) return;
     const unsubscribers = [
       onSnapshot(doc(db, 'assessments', assessmentId), (snapshot) => {
-        if (!snapshot.exists()) return;
+        if (!snapshot.exists()) {
+          deleteFinalizer.current?.markLocalDeleteApplied();
+          return;
+        }
         const assessment = snapshot.data() as Assessment;
         setAssessmentName(assessment.name);
         setCourseCode(assessment.courseCode);
@@ -301,19 +306,22 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       noteSnapshot.docs.forEach((note) => batch.delete(note.ref));
       if (collabCode.match(/^[A-Z]{5}$/)) batch.delete(doc(db, 'collaborationCodes', collabCode));
       batch.delete(doc(db, 'assessments', assessmentId));
-      await batch.commit();
       const storageCleanupFailureCount = storageCleanupFailures.filter(Boolean).length;
-      if (storageCleanupFailureCount) {
-        try {
-          sessionStorage.setItem(
-            'motion:study-delete-notice',
-            `Assessment deleted. ${storageCleanupFailureCount} legacy attachment${storageCleanupFailureCount === 1 ? '' : 's'} could not be removed from Storage.`
-          );
-        } catch {
-          // The detailed diagnostic has already been logged above.
+      const finalizer = createLocalDeleteFinalizer(() => {
+        if (storageCleanupFailureCount) {
+          try {
+            sessionStorage.setItem(
+              'motion:study-delete-notice',
+              `Assessment deleted. ${storageCleanupFailureCount} legacy attachment${storageCleanupFailureCount === 1 ? '' : 's'} could not be removed from Storage.`
+            );
+          } catch {
+            // The detailed diagnostic has already been logged above.
+          }
         }
-      }
-      onBack();
+        onBack();
+      });
+      deleteFinalizer.current = finalizer;
+      await finalizer.waitForCommit(batch.commit());
     } catch (error) {
       committingDeletion.current = false;
       const details = firebaseErrorDetails(error);
@@ -326,7 +334,7 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
       setDeleteError(`Could not delete this assessment while ${stage}. Please check your connection and try again.`);
       setShowDeleteConfirmation(false);
     } finally {
-      setIsDeleting(false);
+      if (!deleteFinalizer.current?.didNavigate()) setIsDeleting(false);
     }
   };
 
