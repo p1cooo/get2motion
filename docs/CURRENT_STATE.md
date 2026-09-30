@@ -1,5 +1,14 @@
 # Pico's Dashboard — Current State
 
+### Focused update — 30 September 2026
+
+- Work calendar date state and Today controls now use the local clock instead of the former fixed 15 September 2026 value.
+- The banner settings menu can extend beyond the rounded banner and closes on outside pointer clicks.
+- Study and Project task rows can pin their existing canonical tasks to Home. Work detail now stores prep items as canonical `tasks` records; opening a Work item migrates any legacy embedded `todoPrep` rows atomically and clears that embedded list. Home uses its existing owner-scoped task listener for all three areas.
+- TypeScript checks and the production build pass. Authenticated browser and deployment regression for these changes remains outstanding.
+- Auth routing now waits for Firebase's first auth observer result. Protected URLs use `replaceState` to display `/login` when signed out; a direct protected visit is retained in tab session storage for return after sign-in. Local browser checks confirmed direct Study, Work, and Project links redirect to `/login`, Back stays on the login UI, and no console errors appeared. Authenticated logout, return after sign-in, and both sign-in methods still need browser verification.
+
+
 > This file describes the known project state before the Codex refinement pass. Codex should inspect the repository and update this document when it discovers that an item is outdated.
 
 ## Existing project

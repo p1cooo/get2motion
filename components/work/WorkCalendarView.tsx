@@ -117,10 +117,10 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
 
   // View mode: 'month' or 'day'
   const [viewMode, setViewMode] = useState<'month' | 'day'>('month');
-  const [selectedDay, setSelectedDay] = useState<number>(15); // Sep 15 default
+  const [selectedDay, setSelectedDay] = useState(() => new Date().getDate());
 
-  const [currentYear, setCurrentYear] = useState(2026);
-  const [currentMonth, setCurrentMonth] = useState(8); // 8 = September (0-indexed)
+  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [filterType, setFilterType] = useState<'all' | 'class' | 'event'>('all');
 
   // Each signed-in user only receives their own persisted schedule records.
@@ -149,7 +149,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<'class' | 'event'>('class');
-  const [newDateStr, setNewDateStr] = useState('2026-09-15');
+  const [newDateStr, setNewDateStr] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; });
   const [newStartTime, setNewStartTime] = useState('11:00 AM');
   const [newEndTime, setNewEndTime] = useState('12:00 PM');
   const [newRecurrence, setNewRecurrence] = useState<RecurrenceOption>('Every week');
@@ -162,7 +162,16 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
+  const goToToday = () => {
+    const now = new Date();
+    setCurrentYear(now.getFullYear());
+    setCurrentMonth(now.getMonth());
+    setSelectedDay(now.getDate());
+  };
+
   const handlePrevMonth = () => {
+    const previous = new Date(currentYear, currentMonth - 1, 1);
+    setSelectedDay((day) => Math.min(day, new Date(previous.getFullYear(), previous.getMonth() + 1, 0).getDate()));
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear((y) => y - 1);
@@ -172,6 +181,8 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
   };
 
   const handleNextMonth = () => {
+    const next = new Date(currentYear, currentMonth + 1, 1);
+    setSelectedDay((day) => Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear((y) => y + 1);
@@ -218,7 +229,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    const dayParsed = parseInt(newDateStr.split('-')[2] || '15', 10);
+    const dayParsed = parseInt(newDateStr.split('-')[2] || String(new Date().getDate()), 10);
     const combinedTime = `${newStartTime} – ${newEndTime}`;
 
     const newEntry: Omit<CalendarEntryDemo, 'id' | 'workItemId'> & { ownerId: string; createdAt: string } = {
@@ -292,7 +303,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
       setEntries((prev) =>
         prev.map((item) => {
           if (item.workItemId === entry.workItemId && item.dayNum >= entry.dayNum) {
-            const nextDay = Math.min(30, Math.max(1, item.dayNum + delta));
+            const nextDay = Math.min(daysInMonth, Math.max(1, item.dayNum + delta));
             return {
               ...item,
               dayNum: nextDay,
@@ -440,8 +451,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
               </button>
               <button
                 onClick={() => {
-                  setCurrentMonth(8);
-                  setCurrentYear(2026);
+                  goToToday();
                 }}
                 className="px-3 py-1 text-xs font-semibold rounded-full bg-[#fbf7f1] hover:bg-[#f6eee3] border border-[#ede2d2] text-[#786659]"
               >
@@ -485,7 +495,8 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
                 );
               }
 
-              const isToday = dayNum === 15;
+              const today = new Date();
+              const isToday = currentYear === today.getFullYear() && currentMonth === today.getMonth() && dayNum === today.getDate();
               const isSelected = selectedDay === dayNum;
               const date = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
               const dayEntries = filteredEntries.filter((entry) => entry.date === date);
@@ -626,7 +637,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
 
                 <div>
                   <h2 className="text-lg sm:text-xl font-extrabold text-[#43342a]">
-                    {selectedDay} September {currentYear}
+                    {selectedDay} {monthNames[currentMonth]} {currentYear}
                   </h2>
                   <span className="text-xs text-[#8c7a6e] font-medium">
                     {selectedDayEntries.length} scheduled session{selectedDayEntries.length === 1 ? '' : 's'} • Click any empty slot to add
@@ -634,7 +645,7 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
                 </div>
 
                 <button
-                  onClick={() => setSelectedDay((d) => Math.min(30, d + 1))}
+                  onClick={() => setSelectedDay((d) => Math.min(daysInMonth, d + 1))}
                   className="p-1.5 rounded-full hover:bg-[#f6eee3] text-[#786659] cursor-pointer"
                   title="Next Day"
                 >
@@ -644,10 +655,10 @@ export const WorkCalendarView: React.FC<WorkCalendarViewProps> = ({
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setSelectedDay(15)}
+                  onClick={goToToday}
                   className="px-3.5 py-1.5 text-xs font-bold rounded-full bg-[#fbf7f1] hover:bg-[#f6eee3] border border-[#ede2d2] text-[#786659] cursor-pointer"
                 >
-                  Go to Today (Sep 15)
+                  Go to Today
                 </button>
                 <button
                   onClick={() => openCreateModalForSlot(selectedDay, '11:00 AM')}

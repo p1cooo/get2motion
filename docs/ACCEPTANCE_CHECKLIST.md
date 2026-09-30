@@ -1,5 +1,22 @@
 # Pico's Dashboard — V1 Acceptance Checklist
 
+## 30 Sep 2026 focused changes
+- [x] Calendar date, highlight, and Today controls derive from the local clock in code; month arrows preserve a valid selected day.
+- [x] Banner settings menu is outside the banner's clipping area in code and closes on outside pointer clicks.
+- [x] Study, Project, and Work task rows expose a manual Home pin control backed by canonical `tasks.showOnHome`.
+- [x] Home completion and unpin actions update the original task document; no Home task copy is created.
+- [x] Existing Work prep rows have an atomic migration path into canonical tasks.
+- [ ] Authenticated browser regression confirms the calendar, banner, task syncing, Work migration, and deletion behavior.
+
+## Logout and auth routing — 30 Sep 2026
+- [x] Auth initialization gates route decisions in code.
+- [x] Logout and unauthenticated protected routes replace the URL with `/login` in code.
+- [x] `/login` renders the existing email/password and Google sign-in UI.
+- [x] A directly requested protected URL is restored after sign-in in the same tab.
+- [x] Local logged-out browser redirects direct Study, Work, and Project links to `/login`; Back stays on login without console errors.
+- [ ] Browser regression confirms logout, direct links, Back navigation, and both sign-in methods.
+
+
 Check items only after implementation and verification.
 
 ## Baseline / project health

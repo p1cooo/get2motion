@@ -41,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
-    const loadingFallback = window.setTimeout(() => setLoading(false), 1500);
     let unsubscribeProfile: (() => void) | undefined;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       unsubscribeProfile?.();
@@ -75,9 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfile(null);
       }
+    }, (error) => {
+      console.error('Could not initialize authentication.', error);
+      setUser(null);
+      setLoading(false);
     });
 
-    return () => { window.clearTimeout(loadingFallback); unsubscribeProfile?.(); unsubscribe(); };
+    return () => { unsubscribeProfile?.(); unsubscribe(); };
   }, []);
 
   const signInWithEmail = async (email: string, pass: string) => {

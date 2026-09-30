@@ -196,6 +196,11 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
     if (user && task) void updateDoc(doc(db, 'tasks', taskId), { completed: !task.completed, completedAt: task.completed ? null : new Date().toISOString() });
   };
 
+  const toggleHomePin = (task: Task) => {
+    if (!user) setTasks((current) => current.map((item) => item.id === task.id ? { ...item, showOnHome: !item.showOnHome } : item));
+    else void updateDoc(doc(db, 'tasks', task.id), { showOnHome: !task.showOnHome });
+  };
+
   const handleStartEditTask = (taskId: string, currentTitle: string) => {
     setEditingTaskId(taskId);
     setEditingTaskTitle(currentTitle);
@@ -544,6 +549,9 @@ export const ExpandedProjectView: React.FC<ExpandedProjectViewProps> = ({
                     </span>
                   )}
                 </div>
+                <button type="button" onClick={() => toggleHomePin(task)} aria-label={`${task.showOnHome ? 'Unpin from Home' : 'Pin to Home'}: ${task.title}`} title={task.showOnHome ? 'Pinned to Home' : 'Pin to Home'} className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${task.showOnHome ? 'bg-[#e5efe5] text-[#557859]' : 'text-[#a9998d] hover:bg-[#f4ebe1] hover:text-[#786659]'}`}>
+                  {task.showOnHome ? 'Pinned' : 'Pin to Home'}
+                </button>
               </div>
             ))}
           </div>

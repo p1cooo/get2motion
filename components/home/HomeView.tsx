@@ -14,6 +14,7 @@ import {
   Edit2,
   ArrowDown,
   ArrowUp,
+  PinOff,
 } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 import { Task } from '../../lib/types';
@@ -107,6 +108,11 @@ export const HomeView: React.FC<HomeViewProps> = () => {
       completed: !task.completed,
       completedAt: task.completed ? null : new Date().toISOString(),
     });
+  };
+
+  const unpinTask = (taskId: string) => {
+    if (!user) setTasks((current) => current.map((task) => task.id === taskId ? { ...task, showOnHome: false } : task));
+    else void updateDoc(doc(db, 'tasks', taskId), { showOnHome: false, priority: 'normal' });
   };
 
   // Move task to Main Quest (multi-quest supported)
@@ -353,16 +359,16 @@ export const HomeView: React.FC<HomeViewProps> = () => {
                         </div>
                       )}
 
-                      {task.area && (
+                      {task.area && task.area !== 'general' && (
                         <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[#8c7a6e]">
                           <span className="px-2 py-0.5 rounded-sm bg-[#f2e7d5] font-semibold uppercase text-[#6c5b4f]">
                             {task.area}
                           </span>
-                          {task.dueDate && <span>Due {task.dueDate}</span>}
                         </div>
                       )}
                     </div>
 
+                    {task.parentType && <button type="button" onClick={() => unpinTask(task.id)} className="p-1 text-[#a59487] hover:text-[#43342a] hover:bg-[#f2e6d2] rounded-md" title="Unpin from Home" aria-label={`Unpin from Home: ${task.title}`}><PinOff className="w-3.5 h-3.5" /></button>}
                     {/* Demote / Move back to Things To Do */}
                     <button
                       type="button"
@@ -491,6 +497,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
 
                   {/* Actions: Promote to Main Quest & Area Tag */}
                   <div className="flex items-center gap-2 shrink-0">
+                    {task.parentType && <button type="button" onClick={() => unpinTask(task.id)} className="p-1 rounded-md text-[#bbaaa0] hover:text-[#966746] hover:bg-[#f6eee3]" title="Unpin from Home" aria-label={`Unpin from Home: ${task.title}`}><PinOff className="w-3.5 h-3.5" /></button>}
                     <button
                       type="button"
                       onClick={() => handleMoveToMainQuest(task.id)}
@@ -511,7 +518,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
                             : 'bg-[#f7e6e8] text-[#8a4b53]'
                         }`}
                       >
-                        {task.area}
+                        {task.area === 'project' ? 'Project' : task.area}
                       </span>
                     )}
                   </div>

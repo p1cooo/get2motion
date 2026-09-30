@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { doc, onSnapshot, runTransaction, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, runTransaction, updateDoc, where } from 'firebase/firestore';
 import {
   ArrowLeft,
   Calendar,
@@ -19,6 +19,8 @@ import {
 import type { CalendarEntryDemo } from '../../lib/demo-data';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth-context';
+import { createTask } from '../../lib/task-store';
+import type { Task } from '../../lib/types';
 
 type PrepItem = { id: string; title: string; completed: boolean };
 type WorkTextEntry = { id: string; content: string };
@@ -94,7 +96,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
   const [editingNextId, setEditingNextId] = useState<string | null>(null);
   const [editingNextText, setEditingNextText] = useState('');
 
-  const [todoPrep, setTodoPrep] = useState(diary.todoPrep);
+  const [todoPrep, setTodoPrep] = useState<Task[]>([]);
   const [blankPrep, setBlankPrep] = useState('');
   const [editingPrepId, setEditingPrepId] = useState<string | null>(null);
   const [editingPrepText, setEditingPrepText] = useState('');
@@ -108,25 +110,37 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     setRecurrence((entry.recurrenceRule as RecurrenceType) || 'Does not repeat');
     setWhatHappened(normalizeTextEntries((entry as WorkDetailData).whatHappened, 'happened'));
     setNextLesson(normalizeTextEntries((entry as WorkDetailData).nextLesson, 'note'));
-    setTodoPrep((entry as WorkDetailData).todoPrep || []);
   }, [entry]);
+
+  useEffect(() => {
+    if (!user) return;
+    return onSnapshot(query(collection(db, 'tasks'), where('parentId', '==', workItemId), where('ownerId', '==', user.uid)), (snapshot) => {
+      setTodoPrep(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task));
+    });
+  }, [user, workItemId]);
+
+  useEffect(() => {
+    if (!user || !entry || !diary.todoPrep.length) return;
+    void runTransaction(db, async (transaction) => {
+      const workRef = doc(db, 'workItems', workItemId);
+      const workSnapshot = await transaction.get(workRef);
+      if (!workSnapshot.exists() || workSnapshot.data().ownerId !== user.uid) return;
+      const legacy = ((workSnapshot.data() as WorkDetailData).todoPrep || []);
+      const refs = legacy.map((item) => doc(db, 'tasks', `work-prep-${workItemId}-${encodeURIComponent(item.id)}`));
+      legacy.forEach((item, index) => {
+        transaction.set(refs[index], {
+          id: refs[index].id, ownerId: user.uid, title: item.title, completed: item.completed,
+          completedAt: null, createdAt: new Date().toISOString(),
+          dueDate: null, area: 'work', priority: 'normal', showOnHome: false,
+          parentType: 'work', parentId: workItemId, assignedToUserIds: [user.uid],
+        } satisfies Task);
+      });
+      if (legacy.length) transaction.update(workRef, { todoPrep: [] });
+    }).catch((error) => console.error('Could not migrate Work prep tasks.', error));
+  }, [user, entry, workItemId]);
 
   const saveEntry = (changes: Record<string, unknown>) => {
     if (user && entry) void updateDoc(doc(db, 'workItems', entry.id), changes);
-  };
-
-  const updatePrepItems = (mutate: (current: PrepItem[]) => PrepItem[]) => {
-    if (!user) {
-      setTodoPrep(mutate);
-      return;
-    }
-    void runTransaction(db, async (transaction) => {
-      const workItemRef = doc(db, 'workItems', workItemId);
-      const snapshot = await transaction.get(workItemRef);
-      if (!snapshot.exists() || snapshot.data().ownerId !== user.uid) return;
-      const current = (snapshot.data() as WorkDetailData).todoPrep || [];
-      transaction.update(workItemRef, { todoPrep: mutate(current) });
-    });
   };
 
   const updateTextEntries = (
@@ -149,7 +163,12 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
   };
 
   const handleTogglePrep = (id: string) => {
-    updatePrepItems((current) => current.map((item) => item.id === id ? { ...item, completed: !item.completed } : item));
+    const item = todoPrep.find((task) => task.id === id);
+    if (item) void updateDoc(doc(db, 'tasks', id), { completed: !item.completed, completedAt: item.completed ? null : new Date().toISOString() });
+  };
+
+  const toggleHomePin = (item: Task) => {
+    void updateDoc(doc(db, 'tasks', item.id), { showOnHome: !item.showOnHome });
   };
 
   const saveHappenedEntry = (id: string) => {
@@ -170,9 +189,8 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
 
   const savePrepItem = (id: string) => {
     const title = editingPrepText.trim();
-    updatePrepItems((current) => title
-      ? current.map((item) => item.id === id ? { ...item, title } : item)
-      : current.filter((item) => item.id !== id));
+    if (title) void updateDoc(doc(db, 'tasks', id), { title });
+    else void deleteDoc(doc(db, 'tasks', id));
     setEditingPrepId(null);
   };
 
@@ -205,7 +223,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (!blankPrep.trim()) return;
-      updatePrepItems((current) => [...current, { id: makeId('prep'), title: blankPrep.trim(), completed: false }]);
+      if (user) void createTask({ ownerId: user.uid, title: blankPrep.trim(), completed: false, completedAt: null, createdAt: new Date().toISOString(), dueDate: null, area: 'work', priority: 'normal', showOnHome: false, parentType: 'work', parentId: workItemId, assignedToUserIds: [user.uid] });
       setBlankPrep('');
     } else if (e.key === 'Escape') {
       setBlankPrep('');
@@ -572,6 +590,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
                     </button>
                   )}
                 </div>
+                <button type="button" onClick={() => toggleHomePin(item)} aria-label={`${item.showOnHome ? 'Unpin from Home' : 'Pin to Home'}: ${item.title}`} title={item.showOnHome ? 'Pinned to Home' : 'Pin to Home'} className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${item.showOnHome ? 'bg-[#e5efe5] text-[#557859]' : 'text-[#a9998d] hover:bg-[#f4ebe1] hover:text-[#786659]'}`}>{item.showOnHome ? 'Pinned' : 'Pin to Home'}</button>
               </div>
             ))}
           </div>

@@ -367,6 +367,11 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
     });
   };
 
+  const toggleHomePin = (task: Task) => {
+    if (!user) setTasks((current) => current.map((item) => item.id === task.id ? { ...item, showOnHome: !item.showOnHome } : item));
+    else void updateDoc(doc(db, 'tasks', task.id), { showOnHome: !task.showOnHome });
+  };
+
   const saveTaskTitle = (taskId: string) => {
     const title = editingTaskTitle.trim();
     if (!title) {
@@ -902,6 +907,10 @@ export const ExpandedAssessmentView: React.FC<ExpandedAssessmentViewProps> = ({
                         </span>}
                       </div>
                     </div>
+
+                    <button type="button" onClick={() => toggleHomePin(task)} aria-label={`${task.showOnHome ? 'Unpin from Home' : 'Pin to Home'}: ${task.title}`} title={task.showOnHome ? 'Pinned to Home' : 'Pin to Home'} className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${task.showOnHome ? 'bg-[#e5efe5] text-[#557859]' : 'text-[#a9998d] hover:bg-[#f4ebe1] hover:text-[#786659]'}`}>
+                      {task.showOnHome ? 'Pinned' : 'Pin to Home'}
+                    </button>
 
                     {/* Assignee Chip & Popover */}
                     <div className="relative shrink-0">

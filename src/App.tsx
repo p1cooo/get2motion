@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { ThemeProvider, useTheme } from '../lib/theme-context';
 import { CozyBanner } from '../components/CozyBanner';
@@ -17,6 +17,8 @@ import { CozyMediaProvider } from '../components/home/cozy-media-context';
 import { Assessment, Project } from '../lib/types';
 
 type LocationState = { tab: ActiveTab; assessmentId: string | null; workItemId: string | null; workDate: string | null; projectId: string | null };
+const returnToKey = 'motion:returnTo';
+const isProtectedPath = (path: string) => path === '/' || ['/study', '/work', '/projects'].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
 function readLocation(): LocationState {
   const path = window.location.pathname.split('/').filter(Boolean);
@@ -31,6 +33,7 @@ function DashboardContent() {
   const { user, loading, signingOut, signupSuccess, dismissSignupSuccess } = useAuth();
   const { themeConfig } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => readLocation().tab);
+  const [routeUrl, setRouteUrl] = useState(() => window.location.pathname + window.location.search);
 
   // Sub-view routing
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(() => readLocation().assessmentId);
@@ -46,6 +49,7 @@ function DashboardContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const applyLocation = () => {
+    setRouteUrl(window.location.pathname + window.location.search);
     const route = readLocation();
     setActiveTab(route.tab);
     setSelectedAssessmentId(route.assessmentId);
@@ -60,6 +64,27 @@ function DashboardContent() {
     window.addEventListener('popstate', applyLocation);
     return () => window.removeEventListener('popstate', applyLocation);
   }, []);
+
+  useLayoutEffect(() => {
+    if (loading) return;
+    const path = window.location.pathname;
+    if (!user || signingOut) {
+      if (isProtectedPath(path)) {
+        if (!signingOut) window.sessionStorage.setItem(returnToKey, window.location.pathname + window.location.search);
+        else window.sessionStorage.removeItem(returnToKey);
+        window.history.replaceState({}, '', '/login');
+        applyLocation();
+      }
+      return;
+    }
+    if (path === '/login') {
+      const previous = window.sessionStorage.getItem(returnToKey);
+      window.sessionStorage.removeItem(returnToKey);
+      const destination = previous && isProtectedPath(previous.split('?')[0]) ? previous : '/';
+      window.history.replaceState({}, '', destination);
+      applyLocation();
+    }
+  }, [loading, user, signingOut, routeUrl]);
 
   const navigate = (url: string) => {
     window.history.pushState({}, '', url);

@@ -1,5 +1,23 @@
 # Pico's Dashboard — Implementation Plan
 
+## Calendar, banner, and Home task surfacing — 30 Sep 2026
+
+- [x] Replace Work calendar's September 2026 defaults, day highlight, and Today actions with the local current date. Clamp the selected day when changing months.
+- [x] Let the banner settings menu extend beyond the banner while keeping the image rounded; close the menu on outside pointer clicks.
+- [x] Add manual Home pin controls to Study, Project, and Work tasks. Home updates the same canonical task document for completion and unpinning.
+- [x] Migrate existing Work prep rows from `workItems.todoPrep` into owner-scoped canonical `tasks` documents when Work detail opens. New prep rows write directly to `tasks`.
+- [x] Run TypeScript lint/typecheck and production build.
+- [ ] Verify calendar, banner, pin/unpin, task deletion, and Work prep migration in an authenticated browser session at desktop and narrow widths.
+
+## Logout and auth routing — 30 Sep 2026
+
+- [x] Wait for Firebase's first auth observer result before choosing a protected or auth route.
+- [x] Replace protected URLs with `/login` on logout and on direct unauthenticated visits, including browser Back navigation.
+- [x] Remember a directly requested protected URL for the current tab and restore it after email or Google sign-in; otherwise open Home.
+- [x] Run TypeScript checks and production build.
+- [ ] Verify logout, direct protected links, browser Back, and both sign-in methods in an authenticated browser session.
+
+
 Codex should update this file as work progresses. Do not mark complete until implemented and verified.
 
 ## Stage 0 — Repository inspection and baseline

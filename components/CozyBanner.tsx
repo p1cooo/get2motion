@@ -35,6 +35,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
 
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showBannerMenu, setShowBannerMenu] = useState(false);
+  const bannerMenuRef = useRef<HTMLDivElement>(null);
   const [showPositionSubmenu, setShowPositionSubmenu] = useState(false);
   const [showPresetsSubmenu, setShowPresetsSubmenu] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
@@ -42,6 +43,15 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  useEffect(() => {
+    if (!showBannerMenu) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!bannerMenuRef.current?.contains(event.target as Node)) setShowBannerMenu(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick);
+  }, [showBannerMenu]);
 
   // Update currentSrc whenever bannerUrl changes
   useEffect(() => {
@@ -152,7 +162,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
       <div
         className={`relative w-full h-[195px] sm:h-[225px] rounded-3xl ${
           isDraggingOver ? 'border-[#966746] border-dashed ring-4 ring-[#966746]/20' : themeConfig.borderColor
-        } border-[3px] shadow-sm overflow-hidden flex flex-col justify-between p-4 sm:p-6 select-none transition-all duration-200 group`}
+        } border-[3px] shadow-sm flex flex-col justify-between p-4 sm:p-6 select-none transition-all duration-200 group z-20`}
       >
         {/* Real Banner Image Asset (Default: /assets/banner/default-banner.webp or user uploaded) */}
         {!imgFailed ? (
@@ -160,11 +170,11 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
             src={currentSrc}
             alt="Motion header banner"
             onError={handleImgError}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0 transition-all duration-300"
+            className="absolute inset-0 w-full h-full object-cover rounded-[21px] pointer-events-none z-0 transition-all duration-300"
             style={{ objectPosition: `center ${bannerPosition}%` }}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#b6d5e1] via-[#f5e1d3] to-[#faeee3] pointer-events-none z-0">
+          <div className="absolute inset-0 rounded-[21px] overflow-hidden bg-gradient-to-b from-[#b6d5e1] via-[#f5e1d3] to-[#faeee3] pointer-events-none z-0">
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-[#fff9ec]/80 blur-md" />
             <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#93b996]/60 to-transparent" />
           </div>
@@ -284,7 +294,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
             </div>
 
             {/* Banner Image Controls Button: Upload New, Reset, Adjust Position */}
-            <div className="relative">
+            <div className="relative" ref={bannerMenuRef}>
               <button
                 onClick={() => {
                   setShowBannerMenu(!showBannerMenu);
@@ -303,7 +313,7 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
 
               {showBannerMenu && (
                 <div
-                  className="absolute top-9 left-0 z-50 bg-[#fffefb] border border-[#ede2d2] rounded-2xl p-2 shadow-xl w-56 flex flex-col gap-1 text-xs animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute top-9 right-0 sm:right-auto sm:left-0 z-50 bg-[#fffefb] border border-[#ede2d2] rounded-2xl p-2 shadow-xl w-56 max-w-[calc(100vw-2rem)] flex flex-col gap-1 text-xs animate-in fade-in zoom-in-95 duration-150"
                   id="banner-image-menu"
                 >
                   <div className="px-2 py-1 font-bold text-[#8c7a6e] text-[10px] uppercase tracking-wider border-b border-[#f2e7d7] mb-1">
