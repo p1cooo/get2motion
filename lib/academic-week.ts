@@ -11,17 +11,17 @@ export function getAcademicWeek(
       : targetDateInput
     : new Date();
 
-  // Reset to midnight UTC/local for clean day difference
-  const startMs = new Date(
+  // Compare calendar dates in UTC so daylight-saving shifts do not change the week.
+  const startMs = Date.UTC(
     startDate.getFullYear(),
     startDate.getMonth(),
     startDate.getDate()
-  ).getTime();
-  const targetMs = new Date(
+  );
+  const targetMs = Date.UTC(
     targetDate.getFullYear(),
     targetDate.getMonth(),
     targetDate.getDate()
-  ).getTime();
+  );
 
   const diffDays = Math.floor((targetMs - startMs) / (1000 * 60 * 60 * 24));
   

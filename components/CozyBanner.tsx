@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth-context';
 import { useTheme, THEME_CONFIGS, ThemePreset, DEFAULT_BANNER_PATH } from '../lib/theme-context';
 import { Sparkles, Palette, Check, Image as ImageIcon, RotateCcw, Sliders, Upload, Loader2 } from 'lucide-react';
 import { optimizeImageFile, isValidImageFile } from '../lib/image-utils';
+import { getAcademicWeek } from '../lib/academic-week';
 
 interface CozyBannerProps {
   onFoxClick?: () => void;
@@ -31,7 +32,33 @@ export const CozyBanner: React.FC<CozyBannerProps> = ({
   } = useTheme();
 
   const semesterName = profile?.semesterConfig?.semesterName || 'August 2026';
-  const currentWeek = 3;
+  const [today, setToday] = useState(() => new Date());
+  const currentWeek = getAcademicWeek(profile?.semesterConfig?.semesterStartDate, today);
+
+  useEffect(() => {
+    let midnightTimer: number;
+    const scheduleNextDay = () => {
+      window.clearTimeout(midnightTimer);
+      const now = new Date();
+      const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      midnightTimer = window.setTimeout(() => {
+        setToday(new Date());
+        scheduleNextDay();
+      }, nextDay.getTime() - now.getTime());
+    };
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible') {
+        setToday(new Date());
+        scheduleNextDay();
+      }
+    };
+    scheduleNextDay();
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    return () => {
+      window.clearTimeout(midnightTimer);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+    };
+  }, []);
 
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showBannerMenu, setShowBannerMenu] = useState(false);
