@@ -55,11 +55,9 @@ service cloud.firestore {
     // 2. Master Tasks Collection
     match /tasks/{taskId} {
       allow get, list: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
         (isAssessmentTask(resource.data) && canAccessAssessment(resource.data.parentId)) ||
-        (!isAssessmentTask(resource.data) && (
-          resource.data.ownerId == request.auth.uid ||
-          request.auth.uid in resource.data.assignedToUserIds
-        ))
+        (!isAssessmentTask(resource.data) && request.auth.uid in resource.data.assignedToUserIds)
       );
       allow create: if isSignedIn() &&
         request.resource.data.ownerId == request.auth.uid &&

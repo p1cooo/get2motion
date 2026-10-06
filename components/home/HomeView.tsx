@@ -35,6 +35,8 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   const { user } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const pendingTaskIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (!user) {
@@ -44,9 +46,62 @@ export const HomeView: React.FC<HomeViewProps> = () => {
     return onSnapshot(
       query(collection(db, 'tasks'), where('ownerId', '==', user.uid)),
       // Document ID wins over legacy data.id values created by older builds.
-      (snapshot) => setTasks(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task))
+      (snapshot) => {
+        const latest = snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Task);
+        setTaskError(null);
+        setTasks((current) => {
+          const byId = new Map(latest.map((task) => [task.id, task]));
+          current.forEach((task) => {
+            if (pendingTaskIds.current.has(task.id)) byId.set(task.id, task);
+          });
+          return Array.from(byId.values());
+        });
+      },
+      (error) => {
+        console.error('Could not keep Home tasks in sync.', error);
+        setTaskError('Home is having trouble syncing. Your changes may need a refresh on other devices.');
+      },
     );
   }, [user]);
+
+  const reportWriteError = (error: unknown) => {
+    console.error('Could not save Home task.', error);
+    setTaskError('Could not save this change. Please try again.');
+  };
+
+  const saveTaskUpdate = (taskId: string, changes: Partial<Task>) => {
+    const previous = tasks.find((task) => task.id === taskId);
+    pendingTaskIds.current.add(taskId);
+    setTasks((current) => current.map((task) => task.id === taskId ? { ...task, ...changes } : task));
+    if (!user) {
+      pendingTaskIds.current.delete(taskId);
+      return;
+    }
+    void updateDoc(doc(db, 'tasks', taskId), changes).then(() => {
+      pendingTaskIds.current.delete(taskId);
+    }).catch((error) => {
+      pendingTaskIds.current.delete(taskId);
+      if (previous) setTasks((current) => current.map((task) => task.id === taskId ? previous : task));
+      reportWriteError(error);
+    });
+  };
+
+  const addTask = (task: Omit<Task, 'id'>) => {
+    const id = user ? doc(collection(db, 'tasks')).id : `task-${Date.now()}`;
+    pendingTaskIds.current.add(id);
+    setTasks((current) => [...current, { ...task, id }]);
+    if (!user) {
+      pendingTaskIds.current.delete(id);
+      return;
+    }
+    void createTask(task, id).then(() => {
+      pendingTaskIds.current.delete(id);
+    }).catch((error) => {
+      pendingTaskIds.current.delete(id);
+      setTasks((current) => current.filter((item) => item.id !== id));
+      reportWriteError(error);
+    });
+  };
 
   // Blank row quick-entry input states
   const [blankThingsToDoText, setBlankThingsToDoText] = useState('');
@@ -78,57 +133,37 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   // Checkbox toggle handler (Only checkbox toggles completion!)
   const handleToggleTask = (taskId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!user) setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id === taskId) {
-          const nextCompleted = !task.completed;
-          if (nextCompleted) {
-            try {
-              confetti({
-                particleCount: 35,
-                spread: 45,
-                origin: { y: 0.7 },
-                colors: ['#cfa361', '#df989f', '#8fae92', '#e5894b'],
-              });
-            } catch {
-              // ignore
-            }
-          }
-          return {
-            ...task,
-            completed: nextCompleted,
-            completedAt: nextCompleted ? new Date().toISOString() : null,
-          };
-        }
-        return task;
-      })
-    );
     const task = tasks.find((item) => item.id === taskId);
-    if (user && task) void updateDoc(doc(db, 'tasks', taskId), {
-      completed: !task.completed,
-      completedAt: task.completed ? null : new Date().toISOString(),
-    });
+    if (!task) return;
+    const completed = !task.completed;
+    const completedAt = completed ? new Date().toISOString() : null;
+    if (completed) {
+      try {
+        confetti({
+          particleCount: 35,
+          spread: 45,
+          origin: { y: 0.7 },
+          colors: ['#cfa361', '#df989f', '#8fae92', '#e5894b'],
+        });
+      } catch {
+        // Celebration should never block task completion.
+      }
+    }
+    saveTaskUpdate(taskId, { completed, completedAt });
   };
 
   const unpinTask = (taskId: string) => {
-    if (!user) setTasks((current) => current.map((task) => task.id === taskId ? { ...task, showOnHome: false } : task));
-    else void updateDoc(doc(db, 'tasks', taskId), { showOnHome: false, priority: 'normal' });
+    saveTaskUpdate(taskId, { showOnHome: false, priority: 'normal' });
   };
 
   // Move task to Main Quest (multi-quest supported)
   const handleMoveToMainQuest = (taskId: string) => {
-    if (!user) setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, priority: 'mainQuest', showOnHome: true } : t))
-    );
-    if (user) void updateDoc(doc(db, 'tasks', taskId), { priority: 'mainQuest', showOnHome: true });
+    saveTaskUpdate(taskId, { priority: 'mainQuest', showOnHome: true });
   };
 
   // Move task to Things To Do
   const handleMoveToThingsToDo = (taskId: string) => {
-    if (!user) setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, priority: 'normal', showOnHome: true } : t))
-    );
-    if (user) void updateDoc(doc(db, 'tasks', taskId), { priority: 'normal', showOnHome: true });
+    saveTaskUpdate(taskId, { priority: 'normal', showOnHome: true });
   };
 
   // Start inline editing
@@ -141,17 +176,11 @@ export const HomeView: React.FC<HomeViewProps> = () => {
   // Save inline editing
   const saveEditing = () => {
     if (editingTaskId && editingTaskTitle.trim()) {
-      if (!user) setTasks((prev) =>
-        prev.map((t) =>
-          t.id === editingTaskId ? { ...t, title: editingTaskTitle.trim() } : t
-        )
-      );
+      saveTaskUpdate(editingTaskId, { title: editingTaskTitle.trim() });
     }
     if (editingTaskId && !editingTaskTitle.trim()) {
       if (!user) setTasks((prev) => prev.filter((task) => task.id !== editingTaskId));
       if (user) void deleteDoc(doc(db, 'tasks', editingTaskId));
-    } else if (user && editingTaskId) {
-      void updateDoc(doc(db, 'tasks', editingTaskId), { title: editingTaskTitle.trim() });
     }
     setEditingTaskId(null);
   };
@@ -177,8 +206,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      if (user) void createTask(newTask);
-      else setTasks((prev) => [...prev, { ...newTask, id: `task-user-${Date.now()}` }]);
+      addTask(newTask);
       setBlankThingsToDoText('');
     } else if (e.key === 'Escape') {
       setBlankThingsToDoText('');
@@ -207,8 +235,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
         assignedToUserIds: [user?.uid || 'demo-user-pico'],
       };
 
-      if (user) void createTask(newTask);
-      else setTasks((prev) => [{ ...newTask, id: `task-mq-${Date.now()}` }, ...prev]);
+      addTask(newTask);
       setBlankMainQuestText('');
     } else if (e.key === 'Escape') {
       setBlankMainQuestText('');
@@ -255,6 +282,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
 
   return (
     <div className="w-full max-w-[1420px] mx-auto px-4 sm:px-6 py-4 animate-in fade-in duration-300">
+      {taskError && <div role="alert" className="mb-4 rounded-xl border border-[#f2cbd0] bg-[#faeaec] px-4 py-2 text-sm text-[#8a4b53]">{taskError}</div>}
       {/* 
         Balanced 3-Column Lower Layout
         LEFT: Fox illustration card + Multiple Main Quests (Fixed/Max-height scrollable drop target)
@@ -322,7 +350,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
                     key={task.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
-                    className="group relative flex items-start gap-3 p-3.5 rounded-xl border border-[#ead6b5] bg-[#fffaf0] hover:bg-[#fff6e3] text-[#43342a] transition-all cursor-grab active:cursor-grabbing shadow-2xs"
+                    className="home-task-enter group relative flex items-start gap-3 p-3.5 rounded-xl border border-[#ead6b5] bg-[#fffaf0] hover:bg-[#fff6e3] text-[#43342a] transition-all cursor-grab active:cursor-grabbing shadow-2xs"
                   >
                     {/* Checkbox (Only clicking this completes the task!) */}
                     <button
@@ -452,7 +480,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
                   key={task.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id)}
-                  className={`group py-2.5 flex items-center justify-between gap-2.5 -mx-2 px-2 rounded-xl transition-all cursor-grab active:cursor-grabbing hover:bg-[#faf5ec]`}
+                  className="home-task-enter group py-2.5 flex items-center justify-between gap-2.5 -mx-2 px-2 rounded-xl transition-all cursor-grab active:cursor-grabbing hover:bg-[#faf5ec]"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Drag Handle */}
@@ -582,7 +610,7 @@ export const HomeView: React.FC<HomeViewProps> = () => {
                 {doneToday.map((task) => (
                   <div
                     key={task.id}
-                    className="py-2.5 flex items-start justify-between gap-2 group"
+                    className="home-task-enter py-2.5 flex items-start justify-between gap-2 group"
                   >
                     <div className="flex items-start gap-2.5 min-w-0">
                       <div className="w-4 h-4 rounded-full bg-[#8fae92] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">

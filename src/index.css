@@ -32,3 +32,12 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #c8b9a5;
 }
+
+@keyframes home-task-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-task-enter { animation: home-task-enter 220ms ease-out both; }
+}

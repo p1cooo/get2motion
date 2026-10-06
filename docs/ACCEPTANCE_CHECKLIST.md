@@ -1,5 +1,11 @@
 # Pico's Dashboard — V1 Acceptance Checklist
 
+## Home live task feedback — 6 Oct 2026
+
+- [x] Home locally reflects add, complete, edit, pin, and move actions before Firestore confirms the write.
+- [x] Signed-in completion triggers confetti; new and completed rows animate unless reduced motion is preferred.
+- [ ] Deploy the owner task read rule and verify live updates without refresh in an authenticated browser.
+
 ## 30 Sep 2026 focused changes
 - [x] Calendar date, highlight, and Today controls derive from the local clock in code; month arrows preserve a valid selected day.
 - [x] Banner settings menu is outside the banner's clipping area in code and closes on outside pointer clicks.

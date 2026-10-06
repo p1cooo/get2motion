@@ -1,5 +1,13 @@
 # Pico's Dashboard — Implementation Plan
 
+## Home live task feedback — 6 Oct 2026
+
+- [x] Make Home task add, completion, edit, pin, and move actions update the visible list immediately while preserving canonical Firestore IDs.
+- [x] Restore completion confetti for signed-in users and add a subtle task entry animation.
+- [x] Surface Home task listener/write errors instead of silently leaving the list stale.
+- [x] Correct owner task read rules so owner-scoped queries can include assessment tasks.
+- [ ] Deploy the Firestore rule after Firebase CLI access is restored and verify signed-in live updates across tabs.
+
 ## Calendar, banner, and Home task surfacing — 30 Sep 2026
 
 - [x] Replace Work calendar's September 2026 defaults, day highlight, and Today actions with the local current date. Clamp the selected day when changing months.
